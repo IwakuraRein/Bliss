@@ -1,6 +1,11 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Profiling;
+using static UnityEditor.LightingExplorerTableColumn;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
 using static UnityEngine.UI.GridLayoutGroup;
 
 namespace Bliss
@@ -12,12 +17,18 @@ namespace Bliss
         public Vector3 v1;
         public Vector3 v2;
     }
-    public struct GrassChunk
+    public class GrassChunk
     {
-        public float x;
-        public float z;
+        public Vector2 pos;
         public float size;
         public float height;
+
+        public GrassChunk(float x, float z, float size, float height)
+        {
+            this.pos = new Vector2(x, z);
+            this.size = size;
+            this.height = height;
+        }
     }
     public class GrassRenderer : MonoBehaviour
     {
@@ -36,56 +47,142 @@ namespace Bliss
         [SerializeField]
         float chunkHalveDist = 6f;
 
-
         List<GrassChunk> chunks;
+        Vector2[] frustumTriangle = new Vector2[3];
+        Vector2[] frustumTriangleLocal = new Vector2[3];
 
         private void Update()
         {
             // oriente along camera forward direction
-            //transform.position = new Vector3(cam.transform.position.x, 0f, cam.transform.position.z);
-            //transform.forward = Vector3.Normalize(new Vector3(cam.transform.forward.x, 0, cam.transform.forward.z));
+            transform.position = new Vector3(cam.transform.position.x, 0f, cam.transform.position.z);
+            transform.forward = Vector3.Normalize(new Vector3(cam.transform.forward.x, 0, cam.transform.forward.z));
+
+            Profiler.BeginSample("Generate Visible Grass Chunks");
             GenerateChunks();
+            Profiler.EndSample();
         }
         void GenerateChunks()
         {
-            // find the convex hull of camera's view frustum
-            //cam.CalculateFrustumCorners(new Rect(0, 0, 1, 1), maxViewDistance, Camera.MonoOrStereoscopicEye.Mono, corners);
-            Vector3[] corners = new Vector3[5]
-            {
-                transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(0, 0, maxViewDistance))),
-                transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(1, 0, maxViewDistance))),
-                transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(0, 1, maxViewDistance))),
-                transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(1, 1, maxViewDistance))),
-                new Vector3(cam.transform.position.x, 0, cam.transform.position.z),
-            };
+            chunks = new List<GrassChunk>();
 
+            #region get the triangle of frustum's projection
+            //cam.CalculateFrustumCorners(new Rect(0, 0, 1, 1), maxViewDistance, Camera.MonoOrStereoscopicEye.Mono, frustumCorners);
+            var frustumCorners = new Vector3[4];
+            frustumCorners[0] = transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(0, 0, maxViewDistance)));
+            frustumCorners[1] = transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(1, 0, maxViewDistance)));
+            frustumCorners[2] = transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(0, 1, maxViewDistance)));
+            frustumCorners[3] = transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(1, 1, maxViewDistance)));
             float maxX = float.MinValue, minX = float.MaxValue, maxZ = float.MinValue, minZ = float.MaxValue;
-            foreach (var corner in corners)
+            foreach (var corner in frustumCorners)
             {
                 maxX = Mathf.Max(maxX, corner.x);
                 minX = Mathf.Min(minX, corner.x);
                 maxZ = Mathf.Max(maxZ, corner.z);
                 minZ = Mathf.Min(minZ, corner.z);
             }
-            minX = chunkSize * (int)((minX - chunkSize * 0.5f) / chunkSize);
-            maxX = chunkSize * (int)((maxX + chunkSize * 0.5f) / chunkSize);
-            minZ = chunkSize * (int)((minZ - chunkSize * 0.5f) / chunkSize);
-            maxZ = chunkSize * (int)((maxZ + chunkSize * 0.5f) / chunkSize);
 
-            // TODO: use jobsystem or compute shader
-            // 10,000,000 blades???
-            //blades = new GrassBlade[((int)((maxX - minX) / grassInterval)+1) * ((int)((maxZ - minZ) / grassInterval) + 1)];
+            frustumTriangle[0] = new Vector2(cam.transform.position.x, cam.transform.position.z);
+            var foo = transform.TransformPoint(minX, 0f, maxZ);
+            frustumTriangle[1] = new Vector2(foo.x, foo.z);
+            foo = transform.TransformPoint(maxX, 0f, maxZ);
+            frustumTriangle[2] = new Vector2(foo.x, foo.z);
 
-            chunks = new List<GrassChunk>();
-            float interval = chunkSize;
-            for (float z = minZ; z <= maxZ; z += interval)
+            frustumTriangleLocal[0] = transform.InverseTransformPoint(cam.transform.position);
+            frustumTriangleLocal[1] = new Vector2(minX, maxZ);
+            frustumTriangleLocal[2] = new Vector2(maxX, maxZ);
+            #endregion
+
+            #region raterize the triangle
+            var chunkMap = new Dictionary<Vector2Int, GrassChunk>();
+
+            int GridIndex(float x) => Mathf.FloorToInt(x / chunkSize);
+            void Swap<T>(ref T x, ref T y) { var tmp = x; x = y; y = tmp; }
+            const float EPS = 0.001f;
+
+            void fillBottomFlatTriangle(Vector2 v1, Vector2 v2, Vector2 v3)
             {
-                for (float x = minX; x <= maxX; x += interval)
+                float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
+                float invslope2 = (v3.x - v1.x) / (v3.y - v1.y);
+
+                float curx1 = v1.x;
+                float curx2 = v1.x;
+
+                for (int scanlineY = GridIndex(v1.y); scanlineY <= GridIndex(v2.y); scanlineY++)
                 {
-                    var chunk = new GrassChunk();
-                    chunk.x = x; chunk.z = z; chunk.size = interval; chunk.height = grassHeight;
-                    if (IsChunkVisible(chunk)) chunks.Add(chunk);
+                    int xx1 = GridIndex(curx1);
+                    int xx2 = GridIndex(curx2);
+                    for (int x = Mathf.Min(xx1, xx2)-1; x <= Mathf.Max(xx1, xx2)+1; x++)
+                    {
+                        var coord = new Vector2Int(x, scanlineY);
+                        if (!chunkMap.ContainsKey(coord))
+                        {
+                            var chunk = new GrassChunk((float)coord.x * chunkSize, (float)coord.y * chunkSize, chunkSize, grassHeight);
+                            if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
+                        }
+                    }
+                    curx1 += invslope1 * chunkSize;
+                    curx2 += invslope2 * chunkSize;
                 }
+            }
+            void fillTopFlatTriangle(Vector2 v1, Vector2 v2, Vector2 v3)
+            {
+                float invslope1 = (v3.x - v1.x) / (v3.y - v1.y);
+                float invslope2 = (v3.x - v2.x) / (v3.y - v2.y);
+
+                float curx1 = v3.x;
+                float curx2 = v3.x;
+
+                for (int scanlineY = GridIndex(v3.y); scanlineY > GridIndex(v1.y); scanlineY--)
+                {
+                    int xx1 = GridIndex(curx1);
+                    int xx2 = GridIndex(curx2);
+                    for (int x = Mathf.Min(xx1, xx2)-1; x <= Mathf.Max(xx1, xx2)+1; x++)
+                    {
+                        var coord = new Vector2Int(x, scanlineY);
+                        if (!chunkMap.ContainsKey(coord))
+                        {
+                            var chunk = new GrassChunk((float)coord.x * chunkSize, (float)coord.y * chunkSize, chunkSize, grassHeight);
+                            if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
+                        }
+                    }
+                    curx1 -= invslope1 * chunkSize;
+                    curx2 -= invslope2 * chunkSize;
+                }
+            }
+
+            if (frustumTriangle[0].y > frustumTriangle[1].y)
+                Swap(ref frustumTriangle[0], ref frustumTriangle[1]);
+            if (frustumTriangle[0].y > frustumTriangle[2].y)
+                Swap(ref frustumTriangle[0], ref frustumTriangle[2]);
+            if (frustumTriangle[1].y > frustumTriangle[2].y)
+                Swap(ref frustumTriangle[1], ref frustumTriangle[2]);
+
+            if (frustumTriangle[2].y - frustumTriangle[1].y < EPS)
+            {
+                fillBottomFlatTriangle(frustumTriangle[0], frustumTriangle[1], frustumTriangle[2]);
+            }
+            /* check for trivial case of top-flat triangle */
+            else if (frustumTriangle[1].y - frustumTriangle[0].y < EPS)
+            {
+                fillTopFlatTriangle(frustumTriangle[0], frustumTriangle[1], frustumTriangle[2]);
+            }
+            else
+            {
+                /* general case - split the triangle in a topflat and bottom-flat one */
+                Vector2 v4 = new Vector2(
+                    frustumTriangle[0].x + ((frustumTriangle[1].y - frustumTriangle[0].y) / (frustumTriangle[2].y - frustumTriangle[0].y)) * (frustumTriangle[2].x - frustumTriangle[0].x), frustumTriangle[1].y);
+                fillBottomFlatTriangle(frustumTriangle[0], frustumTriangle[1], v4);
+                fillTopFlatTriangle(frustumTriangle[1], v4, frustumTriangle[2]);
+            }
+            #endregion
+
+            #region combine the chunks that are far away
+
+            #endregion
+
+            foreach (var chunk in chunkMap.Values)
+            {
+                chunks.Add(chunk);
             }
         }
         private void OnDrawGizmosSelected()
@@ -98,8 +195,21 @@ namespace Bliss
                 Gizmos.color = visibleColor;
                 foreach (var chunk in chunks)
                 {
-                    Gizmos.DrawCube(new Vector3(chunk.x + chunk.size * 0.5f, chunk.height * 0.5f, chunk.z + chunk.size * 0.5f), new Vector3(chunk.size, chunk.height, chunk.size));
+                    Gizmos.DrawCube(new Vector3(chunk.pos.x + chunk.size * 0.5f, chunk.height * 0.5f, chunk.pos.y + chunk.size * 0.5f), new Vector3(chunk.size, chunk.height, chunk.size));
                 }
+            }
+            if (frustumTriangle != null)
+            {
+                Gizmos.color = Color.yellow;
+                Vector3 vert0 = new Vector3(frustumTriangle[0].x, 0, frustumTriangle[0].y);
+                Vector3 vert1 = new Vector3(frustumTriangle[1].x, 0, frustumTriangle[1].y);
+                Vector3 vert2 = new Vector3(frustumTriangle[2].x, 0, frustumTriangle[2].y);
+                Gizmos.DrawSphere(vert0, 1f);
+                Gizmos.DrawSphere(vert1, 1f);
+                Gizmos.DrawSphere(vert2, 1f);
+                Gizmos.DrawLine(vert0, vert1);
+                Gizmos.DrawLine(vert0, vert2);
+                Gizmos.DrawLine(vert1, vert2);
             }
         }
         //GrassBlade GenerateBlade(float x, float z)
@@ -145,14 +255,14 @@ namespace Bliss
         {
             Vector3[] verts = new Vector3[8]
             {
-                new Vector3(chunk.x - chunk.size * 0.5f, 0f, chunk.z - chunk.size * 0.5f),
-                new Vector3(chunk.x - chunk.size * 0.5f, 0f, chunk.z - chunk.size * 0.5f),
-                new Vector3(chunk.x - chunk.size * 0.5f, 0f, chunk.z - chunk.size * 0.5f),
-                new Vector3(chunk.x - chunk.size * 0.5f, 0f, chunk.z - chunk.size * 0.5f),
-                new Vector3(chunk.x - chunk.size * 0.5f, chunk.height, chunk.z - chunk.size * 0.5f),
-                new Vector3(chunk.x - chunk.size * 0.5f, chunk.height, chunk.z - chunk.size * 0.5f),
-                new Vector3(chunk.x - chunk.size * 0.5f, chunk.height, chunk.z - chunk.size * 0.5f),
-                new Vector3(chunk.x - chunk.size * 0.5f, chunk.height, chunk.z - chunk.size * 0.5f),
+                new Vector3(chunk.pos.x, 0f, chunk.pos.y),
+                new Vector3(chunk.pos.x + chunk.size, 0f, chunk.pos.y),
+                new Vector3(chunk.pos.x + chunk.size, 0f, chunk.pos.y + chunk.size),
+                new Vector3(chunk.pos.x, 0f, chunk.pos.y + chunk.size),
+                new Vector3(chunk.pos.x, chunk.height, chunk.pos.y),
+                new Vector3(chunk.pos.x + chunk.size, chunk.height, chunk.pos.y),
+                new Vector3(chunk.pos.x + chunk.size, chunk.height, chunk.pos.y + chunk.size),
+                new Vector3(chunk.pos.x, chunk.height, chunk.pos.y + chunk.size),
             };
             foreach (var vert in verts)
             {
