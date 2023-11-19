@@ -107,7 +107,7 @@ namespace Bliss
                 float curx1 = v1.x;
                 float curx2 = v1.x;
 
-                for (int scanlineY = GridIndex(v1.y); scanlineY <= GridIndex(v2.y); scanlineY++)
+                for (int scanlineY = GridIndex(v1.y)-1; scanlineY <= GridIndex(v2.y); scanlineY++)
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
@@ -132,7 +132,7 @@ namespace Bliss
                 float curx1 = v3.x;
                 float curx2 = v3.x;
 
-                for (int scanlineY = GridIndex(v3.y); scanlineY > GridIndex(v1.y); scanlineY--)
+                for (int scanlineY = GridIndex(v3.y)+1; scanlineY > GridIndex(v1.y); scanlineY--)
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
