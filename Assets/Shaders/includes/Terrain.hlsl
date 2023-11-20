@@ -11,6 +11,7 @@
 #define MAX_MARCH_STEPS 150
 // doesn't matter much unless it is too small
 #define TILE_WIDTH 1024.0
+#define HEIGHT_MAGNITUDE 0.6
 
 float hash(float n) {
 	//return frac(sin(n) * 43758.5453123);
@@ -54,7 +55,7 @@ float GetHeight(float2 p)
 	float2 d = 0.0;
 
 	// Magnitude at this octave
-	float magnitude = 1.0;
+	float magnitude = HEIGHT_MAGNITUDE;
 
 	// Add multiple octaves of noise, chosen from points that spiral outward
 	// to avoid hitting the tiling period of the noise function.

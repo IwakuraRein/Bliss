@@ -16,6 +16,7 @@ namespace Bliss
         const int OCTAVES = 4;
         const float NORMAL_SAMPLE_DELTA = 0.01f;
         const float TILE_WIDTH = 1024f;
+        const float HEIGHT_MAGNITUDE = 0.6f;
         public static float hash(float n)
         {
             // This yileds different values than shader
@@ -57,7 +58,7 @@ namespace Bliss
             float2 d = 0f;
 
             // Magnitude at this octave
-            float magnitude = 1f;
+            float magnitude = HEIGHT_MAGNITUDE;
 
             // Add multiple octaves of noise, chosen from points that spiral outward
             // to avoid hitting the tiling period of the noise function.

@@ -231,7 +231,6 @@ namespace Bliss
             #region raterize the triangle
             var chunkMap = new Dictionary<Vector2Int, GrassChunk>();
 
-            int GridIndex(float x) => Mathf.FloorToInt(x / chunkSize);
             void Swap<T>(ref T x, ref T y) { var tmp = x; x = y; y = tmp; }
             const float EPS = 0.001f;
 
@@ -255,7 +254,7 @@ namespace Bliss
                         if (!chunkMap.ContainsKey(coord))
                         {
                             var chunk = new GrassChunk(coord, chunkSize);
-                            /*if (IsChunkVisible(chunk))*/ chunkMap.Add(coord, chunk);
+                            if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
                         }
                     }
                     curx1 += invslope1 * chunkSize;
@@ -280,7 +279,7 @@ namespace Bliss
                         if (!chunkMap.ContainsKey(coord))
                         {
                             var chunk = new GrassChunk(coord, chunkSize);
-                            /*if (IsChunkVisible(chunk))*/ chunkMap.Add(coord, chunk);
+                            if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
                         }
                     }
                     curx1 -= invslope1 * chunkSize;
@@ -391,12 +390,31 @@ namespace Bliss
         }
         bool IsChunkVisible(GrassChunk chunk)
         {
-            return GeometryUtility.TestPlanesAABB(frustumPlanes, chunk.GetBounds(grassHeight));
+            var bounds = chunk.GetBounds(grassHeight);
+            bounds.size *= 1.2f; // GeometryUtility.TestPlanesAABB has errors. Don't know why
+            int x = GridIndex(chunk.pos2d.x);
+            int y = GridIndex(chunk.pos2d.y);
+            int xx = GridIndex(this.transform.position.x);
+            int yy = GridIndex(this.transform.position.z);
+            //if (MathF.Abs(x - xx) <= 1 && MathF.Abs(y - yy) <= 1)
+            //{
+            //    foreach (var vert in frustumTriangle)
+            //    {
+            //        if (vert.y >= transform.position.z - Mathf.Epsilon && vert.y <= transform.position.z + Mathf.Epsilon)
+            //            continue;
+            //        Ray r = new Ray(new Vector3(transform.position.x, bounds.center.y, transform.position.z), new Vector3(frustumTriangle[0].x, bounds.center.y, frustumTriangle[0].y));
+            //        if (bounds.IntersectRay(r)) return true;
+            //    }
+            //}
+            //return false;
+            return GeometryUtility.TestPlanesAABB(frustumPlanes, bounds);
         }
         bool IsPointVisible(Vector3 pos)
         {
             Vector3 pos2 = cam.WorldToViewportPoint(pos);
             return pos2.x > 0 && pos2.x < 1 && pos2.y > 0 && pos2.y < 1 && pos2.x > 0 && pos2.z > 0 && pos2.z <= maxViewDistance;
         }
+
+        int GridIndex(float x) => Mathf.FloorToInt(x / chunkSize);
     }
 }

@@ -19,8 +19,13 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     if (id.x >= _ChunkWidth * _ChunkWidth) return;
     int X = id.x % _ChunkWidth;
     int Y = id.x / _ChunkWidth;
+    
+    float dx = hash(float(id.x)) * 2.0 - 1.0;
+    float dy = hash(dx) * 2.0 - 1.0;
 
-    float2 pos = float2(_GridOrigin.x + _GridSize * X, _GridOrigin.y + _GridSize * Y);
+    dx += X; dy += Y;
+
+    float2 pos = float2(_GridOrigin.x + _GridSize * dx, _GridOrigin.y + _GridSize * dy);
 
     float4x4 mat = float4x4 (
         1, 0, 0, pos.x,
