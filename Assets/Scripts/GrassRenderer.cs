@@ -82,6 +82,7 @@ namespace Bliss
         ComputeBuffer drawIndirectArgsBuffer; // store number, lod, grid origin position, etc
 
         List<GrassChunk> chunks;
+        Plane[] frustumPlanes;
         Vector2[] frustumTriangle = new Vector2[3];
         Vector2[] frustumTriangleLocal = new Vector2[3];
 
@@ -153,10 +154,10 @@ namespace Bliss
         void Render()
         {
 
-            var rotScaleMat = Matrix4x4.Rotate(Quaternion.LookRotation(-transform.forward, transform.up));
-            rotScaleMat = rotScaleMat * Matrix4x4.Scale(scaleOverride);
+            //var rotScaleMat = Matrix4x4.Rotate(Quaternion.LookRotation(-transform.forward, transform.up));
+            //rotScaleMat = rotScaleMat * Matrix4x4.Scale(scaleOverride);
 
-            rotScaleMat = Matrix4x4.Scale(scaleOverride);
+            var rotScaleMat = Matrix4x4.Scale(scaleOverride);
 
             int kernel = compute.FindKernel("CSMain");
             compute.SetMatrix("_RotScaleMat", rotScaleMat);
@@ -199,6 +200,8 @@ namespace Bliss
             chunks = new List<GrassChunk>();
 
             #region get the triangle of frustum's projection
+            frustumPlanes = GeometryUtility.CalculateFrustumPlanes(cam);
+
             //cam.CalculateFrustumCorners(new Rect(0, 0, 1, 1), maxViewDistance, Camera.MonoOrStereoscopicEye.Mono, frustumCorners);
             var frustumCorners = new Vector3[4];
             frustumCorners[0] = transform.InverseTransformPoint(cam.ViewportToWorldPoint(new Vector3(0, 0, maxViewDistance)));
@@ -232,6 +235,8 @@ namespace Bliss
             void Swap<T>(ref T x, ref T y) { var tmp = x; x = y; y = tmp; }
             const float EPS = 0.001f;
 
+
+
             void fillBottomFlatTriangle(Vector2 v1, Vector2 v2, Vector2 v3)
             {
                 float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
@@ -240,7 +245,7 @@ namespace Bliss
                 float curx1 = v1.x;
                 float curx2 = v1.x;
 
-                for (int scanlineY = GridIndex(v1.y) - 1; scanlineY <= GridIndex(v2.y); scanlineY++)
+                for (int scanlineY = GridIndex(v1.y)-1; scanlineY <= GridIndex(v2.y); scanlineY++)
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
@@ -250,7 +255,7 @@ namespace Bliss
                         if (!chunkMap.ContainsKey(coord))
                         {
                             var chunk = new GrassChunk(coord, chunkSize);
-                            if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
+                            /*if (IsChunkVisible(chunk))*/ chunkMap.Add(coord, chunk);
                         }
                     }
                     curx1 += invslope1 * chunkSize;
@@ -275,7 +280,7 @@ namespace Bliss
                         if (!chunkMap.ContainsKey(coord))
                         {
                             var chunk = new GrassChunk(coord, chunkSize);
-                            if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
+                            /*if (IsChunkVisible(chunk))*/ chunkMap.Add(coord, chunk);
                         }
                     }
                     curx1 -= invslope1 * chunkSize;
@@ -386,27 +391,7 @@ namespace Bliss
         }
         bool IsChunkVisible(GrassChunk chunk)
         {
-            Vector3[] verts = new Vector3[8]
-            {
-                new Vector3(chunk.X, 0f, chunk.Y),
-                new Vector3(chunk.X + chunk.size, 0f, chunk.Y),
-                new Vector3(chunk.X + chunk.size, 0f, chunk.Y + chunk.size),
-                new Vector3(chunk.X, 0f, chunk.Y + chunk.size),
-                new Vector3(chunk.X, grassHeight, chunk.Y),
-                new Vector3(chunk.X + chunk.size, grassHeight, chunk.Y),
-                new Vector3(chunk.X + chunk.size, grassHeight, chunk.Y + chunk.size),
-                new Vector3(chunk.X, grassHeight, chunk.Y + chunk.size),
-            };
-            //Vector3[] verts = new Vector3[2]
-            //{
-            //    new Vector3(chunk.X + chunk.size * 0.5f, 0f, chunk.Y + chunk.size * 0.5f),
-            //    new Vector3(chunk.X + chunk.size * 0.5f, grassHeight, chunk.Y + chunk.size * 0.5f),
-            //};
-            foreach (var vert in verts)
-            {
-                if (IsPointVisible(vert)) return true;
-            }
-            return false;
+            return GeometryUtility.TestPlanesAABB(frustumPlanes, chunk.GetBounds(grassHeight));
         }
         bool IsPointVisible(Vector3 pos)
         {

@@ -61,7 +61,7 @@ Shader "Bliss/RayMarchTerrain"
             {
                 float2 uv = i.position.xy / _ScreenParams.xy;
                 uv = (-1.0 + 2.0 * uv);
-                uv.x *= _ScreenParams.x / _ScreenParams.y;
+                uv.x;
 
                 float3 target = mul(unity_CameraInvProjection, float4(uv, 0.0, -1.0));
                 target = mul(unity_CameraToWorld, float4(target, 1.0));
@@ -132,7 +132,8 @@ Shader "Bliss/RayMarchTerrain"
 
             half4 frag(v2f i, out float depth : SV_Depth) : SV_Target
             {
-                float3 target = mul(unity_CameraInvProjection, float4(i.position.xy, 0.0, 1.0));
+                //float3 target = mul(unity_CameraInvProjection, float4(i.position.xy, 0.0, 1.0));
+                float3 target = 0;
                 target = mul(unity_CameraToWorld, float4(target, 1.0));
 
                 float3 dir = normalize(target - _WorldSpaceCameraPos);
