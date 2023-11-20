@@ -19,15 +19,29 @@ namespace Bliss
     }
     public class GrassChunk
     {
-        public Vector2 pos;
-        public float size;
-        public float height;
-
-        public GrassChunk(float x, float z, float size, float height)
+        //public Vector2Int grid;
+        public float X
         {
-            this.pos = new Vector2(x, z);
+            get { return pos3d.x; }
+        }
+        public float Y
+        {
+            get { return pos3d.z; }
+        }
+        public Vector2 pos2d;
+        public Vector3 pos3d;
+        public float size;
+
+        public GrassChunk(Vector2Int grid, float size)
+        {
+            //this.grid = grid;
+            this.pos2d = new Vector2(grid.x * size, grid.y * size);
+            this.pos3d = new Vector3(grid.x * size, 0, grid.y * size);
             this.size = size;
-            this.height = height;
+        }
+        public Bounds GetBounds(float height)
+        {
+            return new Bounds(new Vector3(X + size * 0.5f, height * 0.5f, Y + size * 0.5f), new Vector3(size, height, size));
         }
     }
     public class GrassRenderer : MonoBehaviour
@@ -45,11 +59,83 @@ namespace Bliss
         [SerializeField]
         float chunkSize = 2f;
         [SerializeField]
-        float chunkHalveDist = 6f;
+        float LOD0Dist = 5f;
+        [SerializeField]
+        [Tooltip("A chunk will of ChunkGrassSize^2 grass blades.")]
+        int ChunkGrassSize = 100;
+        [SerializeField]
+        int MaxChunkSize = 100;
+        [SerializeField]
+        float LOD1Dist = 20f;
+        [SerializeField]
+        float LOD2Dist = 50f;
+        [SerializeField]
+        ComputeShader compute;
+        [SerializeField]
+        Material material; // vert and frag
+        [SerializeField]
+        Mesh mesh;
+        [SerializeField]
+        Vector3 scaleOverride = Vector3.one;
+
+        ComputeBuffer meshRenderPropertyBuffer; // store matrics for grass
+        ComputeBuffer drawIndirectArgsBuffer; // store number, lod, grid origin position, etc
 
         List<GrassChunk> chunks;
         Vector2[] frustumTriangle = new Vector2[3];
         Vector2[] frustumTriangleLocal = new Vector2[3];
+
+        public int GrassNumPerChunk
+        {
+            get { return ChunkGrassSize * ChunkGrassSize; }
+        }
+
+        struct GrassRenderProperty
+        {
+            public Matrix4x4 mat;
+            public Vector4 col;
+            public static int Size()
+            {
+                return
+                    sizeof(float) * 4 * 4 + // matrix;
+                    sizeof(float) * 4;      // color;
+            }
+        };
+        void InitializeBuffers()
+        {
+            int kernel = compute.FindKernel("CSMain");
+
+            // Argument buffer used by DrawMeshInstancedIndirect.
+            // It has 5 uint values
+            drawIndirectArgsBuffer = new ComputeBuffer(1, 5 * sizeof(uint), ComputeBufferType.IndirectArguments);
+
+            meshRenderPropertyBuffer = new ComputeBuffer(GrassNumPerChunk * MaxChunkSize, GrassRenderProperty.Size());
+            compute.SetBuffer(kernel, "_Properties", meshRenderPropertyBuffer);
+            material.SetBuffer("_Properties", meshRenderPropertyBuffer);
+        }
+        void ReleaseBuffers()
+        {
+            if (meshRenderPropertyBuffer != null)
+            {
+                meshRenderPropertyBuffer.Release();
+            }
+            meshRenderPropertyBuffer = null;
+
+            if (drawIndirectArgsBuffer != null)
+            {
+                drawIndirectArgsBuffer.Release();
+            }
+            drawIndirectArgsBuffer = null;
+        }
+
+        void OnEnable()
+        {
+            InitializeBuffers();
+        }
+        private void OnDisable()
+        {
+            ReleaseBuffers();
+        }
 
         private void Update()
         {
@@ -60,7 +146,54 @@ namespace Bliss
             Profiler.BeginSample("Generate Visible Grass Chunks");
             GenerateChunks();
             Profiler.EndSample();
+
+            Render();
         }
+
+        void Render()
+        {
+
+            var rotScaleMat = Matrix4x4.Rotate(Quaternion.LookRotation(-transform.forward, transform.up));
+            rotScaleMat = rotScaleMat * Matrix4x4.Scale(scaleOverride);
+
+            rotScaleMat = Matrix4x4.Scale(scaleOverride);
+
+            int kernel = compute.FindKernel("CSMain");
+            compute.SetMatrix("_RotScaleMat", rotScaleMat);
+
+            int PropertiesStartIdx = 0;
+            int chunkCount = 0;
+
+            if (chunks != null)
+            {
+                foreach (var chunk in chunks)
+                {
+                    if (++chunkCount > MaxChunkSize) break;
+                    //var chunk = chunks[0];
+                    compute.SetVector("_GridOrigin", chunk.pos2d);
+                    compute.SetFloat("_GridSize", chunk.size / ChunkGrassSize);
+                    compute.SetFloat("_GrassHeight", grassHeight);
+                    compute.SetFloat("_GrassWidth", grassWidth);
+                    compute.SetInt("_ChunkWidth", ChunkGrassSize);
+                    compute.SetInt("_PropertiesStartIdx", PropertiesStartIdx);
+                    // We used to just be able to use `population` here, but it looks like a Unity update imposed a thread limit (65535) on my device.
+                    // This is probably for the best, but we have to do some more calculation.  Divide population by numthreads.x in the compute shader.
+                    compute.Dispatch(kernel, Mathf.CeilToInt(GrassNumPerChunk / 64f), 1, 1);
+                    PropertiesStartIdx += GrassNumPerChunk;
+                }
+            }
+            
+            uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
+            // Arguments for drawing mesh.
+            // 0 == number of triangle indices, 1 == population, others are only relevant if drawing submeshes.
+            args[0] = (uint)mesh.GetIndexCount(0);
+            args[1] = (uint)(GrassNumPerChunk * System.Math.Min(chunks.Count, MaxChunkSize));
+            args[2] = (uint)mesh.GetIndexStart(0);
+            args[3] = (uint)mesh.GetBaseVertex(0);
+            drawIndirectArgsBuffer.SetData(args);
+            Graphics.DrawMeshInstancedIndirect(mesh, 0, material, new Bounds(transform.position, Vector3.one * maxViewDistance), drawIndirectArgsBuffer);
+        }
+
         void GenerateChunks()
         {
             chunks = new List<GrassChunk>();
@@ -107,16 +240,16 @@ namespace Bliss
                 float curx1 = v1.x;
                 float curx2 = v1.x;
 
-                for (int scanlineY = GridIndex(v1.y)-1; scanlineY <= GridIndex(v2.y); scanlineY++)
+                for (int scanlineY = GridIndex(v1.y) - 1; scanlineY <= GridIndex(v2.y); scanlineY++)
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
-                    for (int x = Mathf.Min(xx1, xx2)-1; x <= Mathf.Max(xx1, xx2)+1; x++)
+                    for (int x = Mathf.Min(xx1, xx2) - 1; x <= Mathf.Max(xx1, xx2) + 1; x++)
                     {
                         var coord = new Vector2Int(x, scanlineY);
                         if (!chunkMap.ContainsKey(coord))
                         {
-                            var chunk = new GrassChunk((float)coord.x * chunkSize, (float)coord.y * chunkSize, chunkSize, grassHeight);
+                            var chunk = new GrassChunk(coord, chunkSize);
                             if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
                         }
                     }
@@ -132,16 +265,16 @@ namespace Bliss
                 float curx1 = v3.x;
                 float curx2 = v3.x;
 
-                for (int scanlineY = GridIndex(v3.y)+1; scanlineY > GridIndex(v1.y); scanlineY--)
+                for (int scanlineY = GridIndex(v3.y) + 1; scanlineY > GridIndex(v1.y); scanlineY--)
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
-                    for (int x = Mathf.Min(xx1, xx2)-1; x <= Mathf.Max(xx1, xx2)+1; x++)
+                    for (int x = Mathf.Min(xx1, xx2) - 1; x <= Mathf.Max(xx1, xx2) + 1; x++)
                     {
                         var coord = new Vector2Int(x, scanlineY);
                         if (!chunkMap.ContainsKey(coord))
                         {
-                            var chunk = new GrassChunk((float)coord.x * chunkSize, (float)coord.y * chunkSize, chunkSize, grassHeight);
+                            var chunk = new GrassChunk(coord, chunkSize);
                             if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
                         }
                     }
@@ -178,11 +311,48 @@ namespace Bliss
 
             #region combine the chunks that are far away
 
+            //var needDelete = new HashSet<Vector2Int>();
+            //void CombineChunks(ref GrassChunk chunk, int count)
+            //{
+            //    var needDelete2 = new HashSet<Vector2Int>(count);
+            //    var coord = new Vector2Int();
+            //    for (int x = 0; x < count; ++x)
+            //    {
+            //        for (int y = 0; y < count; ++y)
+            //        {
+            //            if (x == 0 && y == 0) continue;
+            //            coord.x = GridIndex(chunk.X) + x; coord.y = GridIndex(chunk.Y) + y;
+            //            if (needDelete.Contains(coord)) return;
+            //            /*if (chunkMap.ContainsKey(coord))*/ needDelete2.Add(coord);
+            //        }
+            //    }
+            //    needDelete.UnionWith(needDelete2);
+            //    chunk.size = chunkSize * count;
+            //}
+            //foreach (var pair in chunkMap)
+            //{
+            //    if (needDelete.Contains(pair.Key)) continue;
+            //    var chunk = pair.Value;
+
+            //    if (Vector3.Distance(pair.Value.pos, followingCam.transform.position) > LOD2Dist)
+            //    {
+            //        CombineChunks(ref chunk, 8);
+            //    }
+            //    else if (Vector3.Distance(chunk.pos, followingCam.transform.position) > LOD1Dist)
+            //    {
+            //        CombineChunks(ref chunk, 4);
+            //    }
+            //    else if (Vector3.Distance(chunk.pos, followingCam.transform.position) > LOD0Dist)
+            //    {
+            //        CombineChunks(ref chunk, 2);
+            //    }
+            //}
             #endregion
 
-            foreach (var chunk in chunkMap.Values)
+            foreach (var pair in chunkMap)
             {
-                chunks.Add(chunk);
+                //if (needDelete.Contains(pair.Key)) continue;
+                chunks.Add(pair.Value);
             }
         }
         private void OnDrawGizmosSelected()
@@ -190,12 +360,14 @@ namespace Bliss
             if (chunks != null)
             {
                 //Gizmos.matrix = transform.localToWorldMatrix;
-                Color visibleColor = new Color(0, 1, 0, 0.5f);
-                Color invisibleColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-                Gizmos.color = visibleColor;
+                Color cubeColor = new Color(0, 1, 0, 0.5f);
+                Color wireColor = new Color(1f, 0f, 0f, 0.5f);
                 foreach (var chunk in chunks)
                 {
-                    Gizmos.DrawCube(new Vector3(chunk.pos.x + chunk.size * 0.5f, chunk.height * 0.5f, chunk.pos.y + chunk.size * 0.5f), new Vector3(chunk.size, chunk.height, chunk.size));
+                    Gizmos.color = cubeColor;
+                    Gizmos.DrawCube(new Vector3(chunk.X + chunk.size * 0.5f, grassHeight * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, grassHeight, chunk.size));
+                    Gizmos.color = wireColor;
+                    Gizmos.DrawWireCube(new Vector3(chunk.X + chunk.size * 0.5f, grassHeight * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, grassHeight, chunk.size));
                 }
             }
             if (frustumTriangle != null)
@@ -212,58 +384,24 @@ namespace Bliss
                 Gizmos.DrawLine(vert1, vert2);
             }
         }
-        //GrassBlade GenerateBlade(float x, float z)
-        //{
-        //    // TODO: add wind force
-        //    var blade = new GrassBlade();
-        //    blade.v0 = new Vector3(x, 0, z);
-        //    blade.v1 = new Vector3(x, grassHeight, z);
-        //    blade.v1 = new Vector3(x, grassHeight, z);
-        //    return blade;
-        //}
-        //bool IsBladeInPolygon(GrassBlade blade, Vector3[] polygon)
-        //{
-        //    if (IsPointInPolygon(blade.v0, polygon)) return true;
-        //    if (IsPointInPolygon(blade.v1, polygon)) return true;
-        //    if (IsPointInPolygon(blade.v1, polygon)) return true;
-        //    return false;
-        //}
-        //static bool IsPointInPolygon(Vector3 point, Vector3[] polygon)
-        //{
-        //    int polygonLength = polygon.Length, i = 0;
-        //    bool inside = false;
-        //    // x, y for tested point.
-        //    float pointX = point.x, pointY = point.z;
-        //    // start / end point for the current polygon segment.
-        //    float startX, startY, endX, endY;
-        //    Vector3 endPoint = polygon[polygonLength - 1];
-        //    endX = endPoint.x;
-        //    endY = endPoint.z;
-        //    while (i < polygonLength)
-        //    {
-        //        startX = endX; startY = endY;
-        //        endPoint = polygon[i++];
-        //        endX = endPoint.x; endY = endPoint.z;
-        //        //
-        //        inside ^= (endY > pointY ^ startY > pointY) /* ? pointY inside [startY;endY] segment ? */
-        //                  && /* if so, test if it is under the segment */
-        //                  ((pointX - endX) < (pointY - endY) * (startX - endX) / (startY - endY));
-        //    }
-        //    return inside;
-        //}
         bool IsChunkVisible(GrassChunk chunk)
         {
             Vector3[] verts = new Vector3[8]
             {
-                new Vector3(chunk.pos.x, 0f, chunk.pos.y),
-                new Vector3(chunk.pos.x + chunk.size, 0f, chunk.pos.y),
-                new Vector3(chunk.pos.x + chunk.size, 0f, chunk.pos.y + chunk.size),
-                new Vector3(chunk.pos.x, 0f, chunk.pos.y + chunk.size),
-                new Vector3(chunk.pos.x, chunk.height, chunk.pos.y),
-                new Vector3(chunk.pos.x + chunk.size, chunk.height, chunk.pos.y),
-                new Vector3(chunk.pos.x + chunk.size, chunk.height, chunk.pos.y + chunk.size),
-                new Vector3(chunk.pos.x, chunk.height, chunk.pos.y + chunk.size),
+                new Vector3(chunk.X, 0f, chunk.Y),
+                new Vector3(chunk.X + chunk.size, 0f, chunk.Y),
+                new Vector3(chunk.X + chunk.size, 0f, chunk.Y + chunk.size),
+                new Vector3(chunk.X, 0f, chunk.Y + chunk.size),
+                new Vector3(chunk.X, grassHeight, chunk.Y),
+                new Vector3(chunk.X + chunk.size, grassHeight, chunk.Y),
+                new Vector3(chunk.X + chunk.size, grassHeight, chunk.Y + chunk.size),
+                new Vector3(chunk.X, grassHeight, chunk.Y + chunk.size),
             };
+            //Vector3[] verts = new Vector3[2]
+            //{
+            //    new Vector3(chunk.X + chunk.size * 0.5f, 0f, chunk.Y + chunk.size * 0.5f),
+            //    new Vector3(chunk.X + chunk.size * 0.5f, grassHeight, chunk.Y + chunk.size * 0.5f),
+            //};
             foreach (var vert in verts)
             {
                 if (IsPointVisible(vert)) return true;
@@ -273,7 +411,7 @@ namespace Bliss
         bool IsPointVisible(Vector3 pos)
         {
             Vector3 pos2 = cam.WorldToViewportPoint(pos);
-            return pos2.x > 0 && pos2.x < 1 && pos2.y > 0 && pos2.y < 1 && pos2.x > 0 && pos2.z > 0;
+            return pos2.x > 0 && pos2.x < 1 && pos2.y > 0 && pos2.y < 1 && pos2.x > 0 && pos2.z > 0 && pos2.z <= maxViewDistance;
         }
     }
 }

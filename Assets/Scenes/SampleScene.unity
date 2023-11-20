@@ -377,6 +377,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 2
   heightAboveGround: 0.2
+  unlockHeight: 1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -621,10 +622,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cam: {fileID: 330585545}
-  maxViewDistance: 100
+  maxViewDistance: 50
   grassHeight: 0.4
   grassWidth: 0.02
   grassInterval: 0.04
+  chunkSize: 2
+  LOD0Dist: 5
+  ChunkGrassSize: 10
+  MaxChunkSize: 100
+  LOD1Dist: 20
+  LOD2Dist: 50
+  compute: {fileID: 7200000, guid: 47b8eef63a3f0a2428171aac33133dae, type: 3}
+  material: {fileID: 2100000, guid: 47be5096a6aff974a8754715428d6543, type: 2}
+  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  scaleOverride: {x: 0.1, y: 0.1, z: 0.1}
 --- !u!4 &1007344548
 Transform:
   m_ObjectHideFlags: 0

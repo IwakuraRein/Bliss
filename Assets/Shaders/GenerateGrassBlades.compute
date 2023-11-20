@@ -1,0 +1,34 @@
+﻿#pragma kernel CSMain
+
+#include "includes/GrassRenderProperty.hlsl"
+#include "includes/Terrain.hlsl"
+
+RWStructuredBuffer<GrassRenderProperty> _Properties;
+float4x4 _RotScaleMat;
+float2 _GridOrigin;
+float _GridSize;
+float _GrassHeight;
+float _GrassWidth;
+int _ChunkWidth;
+int _PropertiesStartIdx;
+
+// We used to just be able to use (1, 1, 1) threads for whatever population (not sure the old limit), but a Unity update
+// imposed a thread limit of 65535.  Now, to render populations above that, we need to be more granular with our threads.
+[numthreads(64, 1, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= _ChunkWidth * _ChunkWidth) return;
+    int X = id.x % _ChunkWidth;
+    int Y = id.x / _ChunkWidth;
+
+    float2 pos = float2(_GridOrigin.x + _GridSize * X, _GridOrigin.y + _GridSize * Y);
+
+    float4x4 mat = float4x4 (
+        1, 0, 0, pos.x,
+        0, 1, 0, GetHeight(pos),
+        0, 0, 1, pos.y,
+        0, 0, 0, 1 );
+    mat = mul(mat, _RotScaleMat);
+
+    _Properties[id.x + _PropertiesStartIdx].mat = mat;
+
+}
