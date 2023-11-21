@@ -5,6 +5,7 @@
 
 RWStructuredBuffer<GrassRenderProperty> _Properties;
 float4x4 _RotScaleMat;
+float4x4 _RotMat;
 float2 _GridOrigin;
 float _GridSize;
 float _GrassHeight;
@@ -34,6 +35,7 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
         0, 0, 0, 1 );
     mat = mul(mat, _RotScaleMat);
 
-    _Properties[id.x + _PropertiesStartIdx].mat = mat;
+    _Properties[id.x + _PropertiesStartIdx].objectToWorldMat = mat;
+    _Properties[id.x + _PropertiesStartIdx].objectToWorldRotateMat = _RotMat;
 
 }

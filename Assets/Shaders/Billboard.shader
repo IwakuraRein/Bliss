@@ -55,7 +55,7 @@ Shader "Bliss/Billboard"
             {
                 v2f o;
                 //o.vertex = UnityObjectToClipPos(v.vertex);
-                o.vertex = mul(UNITY_MATRIX_VP, mul(_Properties[instanceID].mat, v.vertex));
+                o.vertex = mul(UNITY_MATRIX_VP, mul(_Properties[instanceID].objectToWorldMat, v.vertex));
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 //UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;

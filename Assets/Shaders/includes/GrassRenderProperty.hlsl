@@ -3,7 +3,8 @@
 
 
 struct GrassRenderProperty {
-    float4x4 mat;
+    float4x4 objectToWorldMat;
+    float4x4 objectToWorldRotateMat;
     float4 color;
 };
 

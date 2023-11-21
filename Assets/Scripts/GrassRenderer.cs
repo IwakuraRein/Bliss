@@ -59,12 +59,13 @@ namespace Bliss
         [SerializeField]
         float chunkSize = 2f;
         [SerializeField]
-        float LOD0Dist = 5f;
-        [SerializeField]
         [Tooltip("A chunk will of ChunkGrassSize^2 grass blades.")]
         int ChunkGrassSize = 100;
         [SerializeField]
+        [Range(2, 500)]
         int MaxChunkSize = 100;
+        [SerializeField]
+        float LOD0Dist = 5f;
         [SerializeField]
         float LOD1Dist = 20f;
         [SerializeField]
@@ -158,9 +159,11 @@ namespace Bliss
             //rotScaleMat = rotScaleMat * Matrix4x4.Scale(scaleOverride);
 
             var rotScaleMat = Matrix4x4.Scale(scaleOverride);
+            var rotMat = Matrix4x4.identity;
 
             int kernel = compute.FindKernel("CSMain");
             compute.SetMatrix("_RotScaleMat", rotScaleMat);
+            compute.SetMatrix("_RotMat", rotMat);
 
             int PropertiesStartIdx = 0;
             int chunkCount = 0;
