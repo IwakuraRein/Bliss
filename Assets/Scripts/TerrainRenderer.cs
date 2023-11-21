@@ -48,16 +48,20 @@ namespace Bliss
             context.ExecuteCommandBuffer(cmd);
             cmd.Clear();
         }
+        public void Dispose()
+        {
+
+        }
     }
     [ExecuteInEditMode]
     public class TerrainRenderer : MonoBehaviour
     {
         [SerializeField]
+        bool enableInScene = false;
+        [SerializeField]
         RenderPassEvent injectionPoint = RenderPassEvent.BeforeRenderingOpaques;
         [SerializeField]
         Material material;
-        [SerializeField]
-        bool enableInScene = false;
 
         TerrainPass terrainPass;
 
@@ -76,7 +80,7 @@ namespace Bliss
         private void OnDisable()
         {
             RenderPipelineManager.beginCameraRendering -= OnBeginCamera;
-            //terrainPass.Dispose();
+            terrainPass.Dispose();
         }
     }
 }

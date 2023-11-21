@@ -4,14 +4,38 @@
 #include "includes/Terrain.hlsl"
 
 RWStructuredBuffer<GrassRenderProperty> _Properties;
-float4x4 _RotScaleMat;
-float4x4 _RotMat;
+float4x4 _ScaleMat;
+//float4x4 _RotMat;
 float2 _GridOrigin;
 float _GridSize;
 float _GrassHeight;
 float _GrassWidth;
 int _ChunkWidth;
 int _PropertiesStartIdx;
+
+float4x4 RotateY(float rad)
+{
+    float c = cos(rad);
+    float s = sin(rad);
+
+    return float4x4(
+        c, 0, s, 0,
+        0, 1, 0, 0,
+        -s, 0, c, 0,
+        0, 0, 0, 1
+        );
+}
+float4x4 Translation(float3 translation)
+{
+    float c = cos(translation);
+    float s = sin(translation);
+
+    return float4x4 (
+        1, 0, 0, translation.x,
+        0, 1, 0, translation.y,
+        0, 0, 1, translation.z,
+        0, 0, 0, 1);
+}
 
 // We used to just be able to use (1, 1, 1) threads for whatever population (not sure the old limit), but a Unity update
 // imposed a thread limit of 65535.  Now, to render populations above that, we need to be more granular with our threads.
@@ -28,14 +52,13 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
 
     float2 pos = float2(_GridOrigin.x + _GridSize * dx, _GridOrigin.y + _GridSize * dy);
 
-    float4x4 mat = float4x4 (
-        1, 0, 0, pos.x,
-        0, 1, 0, GetHeight(pos),
-        0, 0, 1, pos.y,
-        0, 0, 0, 1 );
-    mat = mul(mat, _RotScaleMat);
+    float4x4 rotMat = RotateY(hash(dy) * 6.28318531);
+
+    float4x4 mat = Translation(float3(pos.x, GetHeight(pos), pos.y));
+    mat = mul(mat, rotMat);
+    mat = mul(mat, _ScaleMat);
 
     _Properties[id.x + _PropertiesStartIdx].objectToWorldMat = mat;
-    _Properties[id.x + _PropertiesStartIdx].objectToWorldRotateMat = _RotMat;
+    _Properties[id.x + _PropertiesStartIdx].objectToWorldRotateMat = rotMat;
 
 }

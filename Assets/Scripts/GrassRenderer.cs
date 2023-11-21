@@ -1,12 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Profiling;
-using static UnityEditor.LightingExplorerTableColumn;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
-using static UnityEngine.UI.GridLayoutGroup;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Bliss
 {
@@ -44,54 +43,29 @@ namespace Bliss
             return new Bounds(new Vector3(X + size * 0.5f, height * 0.5f, Y + size * 0.5f), new Vector3(size, height, size));
         }
     }
-    public class GrassRenderer : MonoBehaviour
+    [Serializable]
+    public struct GrassPassSettings
     {
-        [SerializeField]
-        Camera cam;
-        [SerializeField]
-        float maxViewDistance = 100f;
-        [SerializeField]
-        float grassHeight = 0.3f;
-        [SerializeField]
-        float grassWidth = 0.02f;
-        [SerializeField]
-        float grassInterval = 0.04f;
-        [SerializeField]
-        float chunkSize = 2f;
-        [SerializeField]
-        [Tooltip("A chunk will of ChunkGrassSize^2 grass blades.")]
-        int ChunkGrassSize = 100;
-        [SerializeField]
+        public float grassHeight;
+        public float grassWidth;
+        public float grassInterval;
+        public float chunkSize;
         [Range(2, 500)]
-        int MaxChunkSize = 100;
-        [SerializeField]
-        float LOD0Dist = 5f;
-        [SerializeField]
-        float LOD1Dist = 20f;
-        [SerializeField]
-        float LOD2Dist = 50f;
-        [SerializeField]
-        ComputeShader compute;
-        [SerializeField]
-        Material material; // vert and frag
-        [SerializeField]
-        Mesh mesh;
-        [SerializeField]
-        Vector3 scaleOverride = Vector3.one;
+        [Tooltip("A chunk will of ChunkGrassSize^2 grass blades.")]
+        public int ChunkGrassSize;
+        public float LOD0Dist;
+        public float LOD1Dist;
+        public float LOD2Dist;
 
-        ComputeBuffer meshRenderPropertyBuffer; // store matrics for grass
-        ComputeBuffer drawIndirectArgsBuffer; // store number, lod, grid origin position, etc
-
-        List<GrassChunk> chunks;
-        Plane[] frustumPlanes;
-        Vector2[] frustumTriangle = new Vector2[3];
-        Vector2[] frustumTriangleLocal = new Vector2[3];
-
+        public Vector3 scaleOverride;
         public int GrassNumPerChunk
         {
             get { return ChunkGrassSize * ChunkGrassSize; }
         }
+    }
 
+    public class GrassPass : ScriptableRenderPass
+    {
         struct GrassRenderProperty
         {
             public Matrix4x4 mat;
@@ -103,19 +77,100 @@ namespace Bliss
                     sizeof(float) * 4;      // color;
             }
         };
-        void InitializeBuffers()
-        {
-            int kernel = compute.FindKernel("CSMain");
+        internal ProfilingSampler pofilingSampler = new ProfilingSampler("Grass");
+        internal Material material;
+        internal Mesh mesh;
+        internal ComputeShader compute;
+        internal bool enableInSceneViewPort = false;
 
+        internal ComputeBuffer meshRenderPropertyBuffer; // store matrics for grass
+        internal ComputeBuffer drawIndirectArgsBuffer; // store number, lod, grid origin position, etc
+        internal List<GrassChunk> chunks;
+        internal GrassPassSettings settings;
+        public GrassPass(Material material, Mesh mesh, ComputeShader compute, int InitialSize, GrassPassSettings settings, RenderPassEvent injectionPoint)
+        {
+            this.material = material;
+            this.mesh = mesh;
+            this.compute = compute;
+            this.settings = settings;
+            renderPassEvent = injectionPoint;
+            InitializeBuffers(InitialSize);
+        }
+        public void InitializeBuffers(int size)
+        {
+            Dispose();
+            int kernel = compute.FindKernel("CSMain");
             // Argument buffer used by DrawMeshInstancedIndirect.
             // It has 5 uint values
             drawIndirectArgsBuffer = new ComputeBuffer(1, 5 * sizeof(uint), ComputeBufferType.IndirectArguments);
-
-            meshRenderPropertyBuffer = new ComputeBuffer(GrassNumPerChunk * MaxChunkSize, GrassRenderProperty.Size());
+            meshRenderPropertyBuffer = new ComputeBuffer(size, GrassRenderProperty.Size());
             compute.SetBuffer(kernel, "_Properties", meshRenderPropertyBuffer);
             material.SetBuffer("_Properties", meshRenderPropertyBuffer);
         }
-        void ReleaseBuffers()
+        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
+        {
+            if (meshRenderPropertyBuffer.count < chunks.Count * settings.GrassNumPerChunk)
+            {
+                Debug.LogWarning("Grass data exceed buffer size. Reallocating buffer...");
+                InitializeBuffers(chunks.Count * settings.GrassNumPerChunk + 1);
+            }
+
+
+            var cameraData = renderingData.cameraData;
+            if ((!enableInSceneViewPort || cameraData.camera.cameraType != CameraType.SceneView) &&
+                (cameraData.camera.cameraType != CameraType.Game && cameraData.camera.cameraType != CameraType.Preview))
+            {
+                return;
+            }
+
+            if (material == null)
+                return;
+            CommandBuffer cmd = CommandBufferPool.Get();
+            using (new ProfilingScope(cmd, pofilingSampler))
+            {
+                var scaleMat = Matrix4x4.Scale(settings.scaleOverride);
+                //var rotMat = Matrix4x4.identity;
+
+                int kernel = compute.FindKernel("CSMain");
+                compute.SetMatrix("_ScaleMat", scaleMat);
+                //compute.SetMatrix("_RotMat", rotMat);
+
+                int PropertiesStartIdx = 0;
+                //int chunkCount = 0;
+
+                if (chunks != null)
+                {
+                    foreach (var chunk in chunks)
+                    {
+                        //if (++chunkCount > maxChunkSize) break;
+                        //var chunk = chunks[0];
+                        compute.SetVector("_GridOrigin", chunk.pos2d);
+                        compute.SetFloat("_GridSize", chunk.size / settings.ChunkGrassSize);
+                        compute.SetFloat("_GrassHeight", settings.grassHeight);
+                        compute.SetFloat("_GrassWidth", settings.grassWidth);
+                        compute.SetInt("_ChunkWidth", settings.ChunkGrassSize);
+                        compute.SetInt("_PropertiesStartIdx", PropertiesStartIdx);
+                        // We used to just be able to use `population` here, but it looks like a Unity update imposed a thread limit (65535) on my device.
+                        // This is probably for the best, but we have to do some more calculation.  Divide population by numthreads.x in the compute shader.
+                        compute.Dispatch(kernel, Mathf.CeilToInt(settings.GrassNumPerChunk / 64f), 1, 1);
+                        PropertiesStartIdx += settings.GrassNumPerChunk;
+                    }
+                }
+
+                uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
+                // Arguments for drawing mesh.
+                // 0 == number of triangle indices, 1 == population, others are only relevant if drawing submeshes.
+                args[0] = (uint)mesh.GetIndexCount(0);
+                args[1] = (uint)(settings.GrassNumPerChunk * chunks.Count);
+                args[2] = (uint)mesh.GetIndexStart(0);
+                args[3] = (uint)mesh.GetBaseVertex(0);
+                drawIndirectArgsBuffer.SetData(args);
+                cmd.DrawMeshInstancedIndirect(mesh, 0, material, 0, drawIndirectArgsBuffer);
+            }
+            context.ExecuteCommandBuffer(cmd);
+            cmd.Clear();
+        }
+        public void Dispose()
         {
             if (meshRenderPropertyBuffer != null)
             {
@@ -129,14 +184,46 @@ namespace Bliss
             }
             drawIndirectArgsBuffer = null;
         }
+    }
+    [ExecuteInEditMode]
+    public class GrassRenderer : MonoBehaviour
+    {
+        [SerializeField]
+        bool enableInScene = false;
+        [SerializeField]
+        RenderPassEvent injectionPoint = RenderPassEvent.BeforeRenderingTransparents;
+        [SerializeField]
+        Camera cam;
+        [SerializeField]
+        float maxViewDistance = 100f;
+        [SerializeField]
+        [Range(50, 5000)]
+        int initialChunkSize = 1000;
+        [SerializeField]
+        ComputeShader compute;
+        [SerializeField]
+        Material material; // vert and frag
+        [SerializeField]
+        Mesh mesh;
+        [SerializeField]
+        GrassPassSettings settings;
+
+        Plane[] frustumPlanes;
+        Vector2[] frustumTriangle = new Vector2[3];
+        Vector2[] frustumTriangleLocal = new Vector2[3];
+
+        GrassPass grassPass;
 
         void OnEnable()
         {
-            InitializeBuffers();
+            grassPass = new GrassPass(material, mesh, compute, initialChunkSize * settings.GrassNumPerChunk, settings, injectionPoint);
+            RenderPipelineManager.beginCameraRendering += OnBeginCamera;
         }
         private void OnDisable()
         {
-            ReleaseBuffers();
+            RenderPipelineManager.beginCameraRendering -= OnBeginCamera;
+            grassPass.Dispose();
+            grassPass = null;
         }
 
         private void Update()
@@ -149,61 +236,21 @@ namespace Bliss
             GenerateChunks();
             Profiler.EndSample();
 
-            Render();
         }
-
-        void Render()
+        void OnBeginCamera(ScriptableRenderContext context, Camera cam)
         {
-
-            //var rotScaleMat = Matrix4x4.Rotate(Quaternion.LookRotation(-transform.forward, transform.up));
-            //rotScaleMat = rotScaleMat * Matrix4x4.Scale(scaleOverride);
-
-            var rotScaleMat = Matrix4x4.Scale(scaleOverride);
-            var rotMat = Matrix4x4.identity;
-
-            int kernel = compute.FindKernel("CSMain");
-            compute.SetMatrix("_RotScaleMat", rotScaleMat);
-            compute.SetMatrix("_RotMat", rotMat);
-
-            int PropertiesStartIdx = 0;
-            int chunkCount = 0;
-
-            if (chunks != null)
-            {
-                foreach (var chunk in chunks)
-                {
-                    if (++chunkCount > MaxChunkSize) break;
-                    //var chunk = chunks[0];
-                    compute.SetVector("_GridOrigin", chunk.pos2d);
-                    compute.SetFloat("_GridSize", chunk.size / ChunkGrassSize);
-                    compute.SetFloat("_GrassHeight", grassHeight);
-                    compute.SetFloat("_GrassWidth", grassWidth);
-                    compute.SetInt("_ChunkWidth", ChunkGrassSize);
-                    compute.SetInt("_PropertiesStartIdx", PropertiesStartIdx);
-                    // We used to just be able to use `population` here, but it looks like a Unity update imposed a thread limit (65535) on my device.
-                    // This is probably for the best, but we have to do some more calculation.  Divide population by numthreads.x in the compute shader.
-                    compute.Dispatch(kernel, Mathf.CeilToInt(GrassNumPerChunk / 64f), 1, 1);
-                    PropertiesStartIdx += GrassNumPerChunk;
-                }
-            }
-            
-            uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
-            // Arguments for drawing mesh.
-            // 0 == number of triangle indices, 1 == population, others are only relevant if drawing submeshes.
-            args[0] = (uint)mesh.GetIndexCount(0);
-            args[1] = (uint)(GrassNumPerChunk * System.Math.Min(chunks.Count, MaxChunkSize));
-            args[2] = (uint)mesh.GetIndexStart(0);
-            args[3] = (uint)mesh.GetBaseVertex(0);
-            drawIndirectArgsBuffer.SetData(args);
-            Graphics.DrawMeshInstancedIndirect(mesh, 0, material, new Bounds(transform.position, Vector3.one * maxViewDistance), drawIndirectArgsBuffer);
+            grassPass.enableInSceneViewPort = enableInScene;
+            grassPass.settings = settings;
+            cam.GetUniversalAdditionalCameraData()
+                .scriptableRenderer.EnqueuePass(grassPass);
         }
 
         void GenerateChunks()
         {
-            chunks = new List<GrassChunk>();
+            grassPass.chunks = new List<GrassChunk>();
 
             #region get the triangle of frustum's projection
-            frustumPlanes = GeometryUtility.CalculateFrustumPlanes(cam);
+            frustumPlanes = GeometryUtility.CalculateFrustumPlanes(Matrix4x4.Perspective(cam.fieldOfView, cam.aspect, cam.nearClipPlane, maxViewDistance) * cam.worldToCameraMatrix);
 
             //cam.CalculateFrustumCorners(new Rect(0, 0, 1, 1), maxViewDistance, Camera.MonoOrStereoscopicEye.Mono, frustumCorners);
             var frustumCorners = new Vector3[4];
@@ -247,21 +294,21 @@ namespace Bliss
                 float curx1 = v1.x;
                 float curx2 = v1.x;
 
-                for (int scanlineY = GridIndex(v1.y)-1; scanlineY <= GridIndex(v2.y); scanlineY++)
+                for (int scanlineY = GridIndex(v1.y) - 1; scanlineY <= GridIndex(v2.y); scanlineY++)
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
-                    for (int x = Mathf.Min(xx1, xx2) - 1; x <= Mathf.Max(xx1, xx2) + 1; x++)
+                    for (int x = Mathf.Min(xx1, xx2); x <= Mathf.Max(xx1, xx2); x++)
                     {
                         var coord = new Vector2Int(x, scanlineY);
                         if (!chunkMap.ContainsKey(coord))
                         {
-                            var chunk = new GrassChunk(coord, chunkSize);
+                            var chunk = new GrassChunk(coord, settings.chunkSize);
                             if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
                         }
                     }
-                    curx1 += invslope1 * chunkSize;
-                    curx2 += invslope2 * chunkSize;
+                    curx1 += invslope1 * settings.chunkSize;
+                    curx2 += invslope2 * settings.chunkSize;
                 }
             }
             void fillTopFlatTriangle(Vector2 v1, Vector2 v2, Vector2 v3)
@@ -276,17 +323,17 @@ namespace Bliss
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
-                    for (int x = Mathf.Min(xx1, xx2) - 1; x <= Mathf.Max(xx1, xx2) + 1; x++)
+                    for (int x = Mathf.Min(xx1, xx2); x <= Mathf.Max(xx1, xx2); x++)
                     {
                         var coord = new Vector2Int(x, scanlineY);
                         if (!chunkMap.ContainsKey(coord))
                         {
-                            var chunk = new GrassChunk(coord, chunkSize);
+                            var chunk = new GrassChunk(coord, settings.chunkSize);
                             if (IsChunkVisible(chunk)) chunkMap.Add(coord, chunk);
                         }
                     }
-                    curx1 -= invslope1 * chunkSize;
-                    curx2 -= invslope2 * chunkSize;
+                    curx1 -= invslope1 * settings.chunkSize;
+                    curx2 -= invslope2 * settings.chunkSize;
                 }
             }
 
@@ -359,22 +406,22 @@ namespace Bliss
             foreach (var pair in chunkMap)
             {
                 //if (needDelete.Contains(pair.Key)) continue;
-                chunks.Add(pair.Value);
+                grassPass.chunks.Add(pair.Value);
             }
         }
         private void OnDrawGizmosSelected()
         {
-            if (chunks != null)
+            if (grassPass.chunks != null)
             {
                 //Gizmos.matrix = transform.localToWorldMatrix;
                 Color cubeColor = new Color(0, 1, 0, 0.5f);
                 Color wireColor = new Color(1f, 0f, 0f, 0.5f);
-                foreach (var chunk in chunks)
+                foreach (var chunk in grassPass.chunks)
                 {
                     Gizmos.color = cubeColor;
-                    Gizmos.DrawCube(new Vector3(chunk.X + chunk.size * 0.5f, grassHeight * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, grassHeight, chunk.size));
+                    Gizmos.DrawCube(new Vector3(chunk.X + chunk.size * 0.5f, settings.grassHeight * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, settings.grassHeight, chunk.size));
                     Gizmos.color = wireColor;
-                    Gizmos.DrawWireCube(new Vector3(chunk.X + chunk.size * 0.5f, grassHeight * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, grassHeight, chunk.size));
+                    Gizmos.DrawWireCube(new Vector3(chunk.X + chunk.size * 0.5f, settings.grassHeight * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, settings.grassHeight, chunk.size));
                 }
             }
             if (frustumTriangle != null)
@@ -383,9 +430,9 @@ namespace Bliss
                 Vector3 vert0 = new Vector3(frustumTriangle[0].x, 0, frustumTriangle[0].y);
                 Vector3 vert1 = new Vector3(frustumTriangle[1].x, 0, frustumTriangle[1].y);
                 Vector3 vert2 = new Vector3(frustumTriangle[2].x, 0, frustumTriangle[2].y);
-                Gizmos.DrawSphere(vert0, 1f);
-                Gizmos.DrawSphere(vert1, 1f);
-                Gizmos.DrawSphere(vert2, 1f);
+                Gizmos.DrawSphere(vert0, 0.1f);
+                Gizmos.DrawSphere(vert1, 0.1f);
+                Gizmos.DrawSphere(vert2, 0.1f);
                 Gizmos.DrawLine(vert0, vert1);
                 Gizmos.DrawLine(vert0, vert2);
                 Gizmos.DrawLine(vert1, vert2);
@@ -393,12 +440,12 @@ namespace Bliss
         }
         bool IsChunkVisible(GrassChunk chunk)
         {
-            var bounds = chunk.GetBounds(grassHeight);
-            bounds.size *= 1.2f; // GeometryUtility.TestPlanesAABB has errors. Don't know why
-            int x = GridIndex(chunk.pos2d.x);
-            int y = GridIndex(chunk.pos2d.y);
-            int xx = GridIndex(this.transform.position.x);
-            int yy = GridIndex(this.transform.position.z);
+            var bounds = chunk.GetBounds(settings.grassHeight);
+            bounds.size *= 1.5f; // GeometryUtility.TestPlanesAABB has errors. Haven't figured out why
+            //int x = GridIndex(chunk.pos2d.x);
+            //int y = GridIndex(chunk.pos2d.y);
+            //int xx = GridIndex(this.transform.position.x);
+            //int yy = GridIndex(this.transform.position.z);
             //if (MathF.Abs(x - xx) <= 1 && MathF.Abs(y - yy) <= 1)
             //{
             //    foreach (var vert in frustumTriangle)
@@ -418,6 +465,6 @@ namespace Bliss
             return pos2.x > 0 && pos2.x < 1 && pos2.y > 0 && pos2.y < 1 && pos2.x > 0 && pos2.z > 0 && pos2.z <= maxViewDistance;
         }
 
-        int GridIndex(float x) => Mathf.FloorToInt(x / chunkSize);
+        int GridIndex(float x) => Mathf.FloorToInt(x / settings.chunkSize);
     }
 }

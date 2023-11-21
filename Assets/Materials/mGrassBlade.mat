@@ -30,6 +30,9 @@ Material:
     m_Ints: []
     m_Floats: []
     m_Colors:
+    - _CenterColor: {r: 0.1317342, g: 0.3962264, b: 0.09531861, a: 1}
+    - _EdgeColor: {r: 0.110262625, g: 0.3490566, b: 0.07738519, a: 1}
     - _HighlightColor: {r: 0.1689123, g: 1, b: 0.0047169924, a: 1}
-    - _ShadowColor: {r: 0.048656836, g: 0.5566038, b: 0, a: 1}
+    - _ShadowColor: {r: 0.13333334, g: 0.39607844, b: 0.09411765, a: 1}
+    - _TopColor: {r: 0.27093166, g: 0.8113208, b: 0.19517621, a: 1}
   m_BuildTextureStacks: []
