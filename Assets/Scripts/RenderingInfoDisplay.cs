@@ -2,24 +2,30 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Bliss;
 
-public class FPSDisplay : MonoBehaviour
+public class RenderingInfoDisplay : MonoBehaviour
 {
     [SerializeField]
-    Text fpsText;
+    GrassRenderer grassRenderer;
+    [SerializeField]
+    Text text;
     [SerializeField]
     float UpdateInterval = 0.5f; // Update the FPS text every 0.5 seconds
     float timeLeft;
     float deltaTime = 0f;
     int frames = 0;
+
+    int FPS = 0;
+    int GrassNum = 0;
     private void Reset()
     {
-        fpsText = GetComponent<Text>();
+        text = GetComponent<Text>();
     }
 
     private void Start()
     {
-        if (fpsText == null)
+        if (text == null)
         {
             Debug.LogError("Please assign the Text component to display FPS!");
             enabled = false;
@@ -36,10 +42,14 @@ public class FPSDisplay : MonoBehaviour
 
         if (timeLeft <= 0)
         {
-            fpsText.text = $"FPS: {Mathf.Ceil(1.0f / deltaTime) * frames}";
+            FPS = (int)Mathf.Ceil(1.0f / deltaTime) * frames;
             timeLeft = UpdateInterval;
             deltaTime = 0f;
             frames = 0;
         }
+
+        GrassNum = grassRenderer.DrawNum;
+
+        text.text = $"FPS: {FPS}\nGrass Blades: {GrassNum}";
     }
 }

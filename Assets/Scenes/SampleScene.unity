@@ -625,20 +625,17 @@ MonoBehaviour:
   injectionPoint: 450
   cam: {fileID: 330585545}
   maxViewDistance: 2
-  initialChunkSize: 500
+  initialChunkSize: 100
   compute: {fileID: 7200000, guid: 47b8eef63a3f0a2428171aac33133dae, type: 3}
   material: {fileID: 2100000, guid: 5686b4d7df4385948953803c6e19253e, type: 2}
-  mesh: {fileID: -2432090755550338912, guid: 342464d477a8d47449956f8abf006c23, type: 3}
+  mesh: {fileID: -618688330650084413, guid: 342464d477a8d47449956f8abf006c23, type: 3}
   settings:
-    grassHeight: 0.4
-    grassWidth: 0.2
-    grassInterval: 0.2
     chunkSize: 2
-    ChunkGrassSize: 100
+    ChunkGrassSize: 250
     LOD0Dist: 2
     LOD1Dist: 5
     LOD2Dist: 10
-    scaleOverride: {x: 0.01, y: 0.01, z: 0.01}
+    scaleOverride: {x: 0.007, y: 0.007, z: 1}
 --- !u!4 &1007344548
 Transform:
   m_ObjectHideFlags: 0
@@ -690,7 +687,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 105, y: -40}
-  m_SizeDelta: {x: 160, y: 30}
+  m_SizeDelta: {x: 160, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1456990325
 MonoBehaviour:
@@ -704,7 +701,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9eb40da4e37a19f4f8d563fa545087b9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  fpsText: {fileID: 1456990326}
+  grassRenderer: {fileID: 1007344546}
+  text: {fileID: 1456990326}
   UpdateInterval: 0.5
 --- !u!114 &1456990326
 MonoBehaviour:

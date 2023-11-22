@@ -4,14 +4,16 @@
 #include "includes/Terrain.hlsl"
 
 RWStructuredBuffer<GrassRenderProperty> _Properties;
-float4x4 _ScaleMat;
+//float4x4 _ScaleMat;
 //float4x4 _RotMat;
 float2 _GridOrigin;
 float _GridSize;
-float _GrassHeight;
-float _GrassWidth;
 int _ChunkWidth;
 int _PropertiesStartIdx;
+
+//float3 _Gravity;
+//float3 _ColliderPos;
+//float3 _ColliderRadius;
 
 float4x4 RotateY(float rad)
 {
@@ -53,12 +55,10 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     float2 pos = float2(_GridOrigin.x + _GridSize * dx, _GridOrigin.y + _GridSize * dy);
 
     float4x4 rotMat = RotateY(hash(dy) * 6.28318531);
+    float4 right = mul(rotMat, float4(1, 0, 0, 0));
+    right.xyz = normalize(right.xyz);
 
-    float4x4 mat = Translation(float3(pos.x, GetHeight(pos), pos.y));
-    mat = mul(mat, rotMat);
-    mat = mul(mat, _ScaleMat);
-
-    _Properties[id.x + _PropertiesStartIdx].objectToWorldMat = mat;
-    _Properties[id.x + _PropertiesStartIdx].objectToWorldRotateMat = rotMat;
+    _Properties[id.x + _PropertiesStartIdx].v0 = float4(pos.x, GetHeight(pos), pos.y, 1);
+    _Properties[id.x + _PropertiesStartIdx].right = right;
 
 }

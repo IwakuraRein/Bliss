@@ -2,10 +2,10 @@ Shader "Bliss/GrassBlade"
 {
     Properties
     {
-        _TopColor("_TopColor", Color) = (0.18, 0.6, 0.12, 1)
-        _CenterColor("_CenterColor", Color) = (0.14, 0.45, 0.091, 1.0)
-        _EdgeColor("_EdgeColor", Color) = (0.05, 0.18, 0.04, 1)
-        _ShadowColor("ShadowColor", Color) = (0, 0, 0, 1)
+        _GrassTopColor("Top Color", Color) = (0.18, 0.6, 0.12, 1)
+        _GrassCenterColor("Center Color", Color) = (0.14, 0.45, 0.091, 1.0)
+        _GrassEdgeColor("Edge Color", Color) = (0.05, 0.18, 0.04, 1)
+        _GrassShadowColor("Shadow Color", Color) = (0.8, 0.8, 0.8, 1)
     }
     SubShader
     {
@@ -20,7 +20,7 @@ Shader "Bliss/GrassBlade"
         {
             Tags { "LightMode" = "UniversalForward" }
             HLSLPROGRAM
-            //#pragma enable_d3d11_debug_symbols 
+            #pragma enable_d3d11_debug_symbols 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _SHADOWS_SOFT
             #pragma multi_compile_fog
@@ -51,18 +51,21 @@ Shader "Bliss/GrassBlade"
                 float4 vertex : SV_POSITION;
             };
 
-            float4 _TopColor;
-            float4 _CenterColor;
-            float4 _EdgeColor;
-            float4 _ShadowColor;
+            float4 _GrassTopColor;
+            float4 _GrassCenterColor;
+            float4 _GrassEdgeColor;
+            float4 _GrassShadowColor;
+
 
             v2f vert (appdata v, uint instanceID: SV_InstanceID)
             {
                 v2f o;
                 //o.vertex = UnityObjectToClipPos(v.vertex);
-                o.world_pos = mul(_Properties[instanceID].objectToWorldMat, v.vertex);
+                GrassRenderProperty prop = _Properties[instanceID];
+                float3 v0 = prop.v0;
+                o.world_pos = float4(v0 + float3(0, 1, 0) * _GrassHeight * v.uv.y + prop.right * (v.uv.x - 0.5) * _GrassWidth, 1);
                 o.vertex = mul(UNITY_MATRIX_VP, o.world_pos);
-                o.normal = mul(_Properties[instanceID].objectToWorldRotateMat, float4(v.normal, 0));
+                o.normal.xyz = normalize(cross(float3(0, 1, 0), prop.right));
                 o.uv = v.uv;
                 return o;
             }
@@ -78,10 +81,10 @@ Shader "Bliss/GrassBlade"
                 float intensity = min(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten, 1.0);
 
                 //float3 color = _HighlightColor;
-                float top = 1 - i.uv.y;
-                float edge = abs(0.5 - i.uv.x);
-                float3 color = lerp(_TopColor, lerp(_EdgeColor, _CenterColor, edge), top);
-                float3 shadowCol = _ShadowColor * color;
+                float top = max(0, min(1, 1 - i.uv.y));
+                float edge = max(0, min(abs(0.5 - i.uv.x) * 2, 1));
+                float3 color = lerp(_GrassTopColor.xyz, lerp(_GrassEdgeColor.xyz, _GrassCenterColor.xyz, edge), top);
+                float3 shadowCol = _GrassShadowColor.xyz * color;
                 color = lerp(color, shadowCol, 1.0 - intensity);
                 float T = length(_WorldSpaceCameraPos - i.world_pos.xyz);
                 ApplyFog(color, T);

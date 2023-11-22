@@ -32,7 +32,11 @@ Material:
     m_Colors:
     - _CenterColor: {r: 0.1317342, g: 0.3962264, b: 0.09531861, a: 1}
     - _EdgeColor: {r: 0.110262625, g: 0.3490566, b: 0.07738519, a: 1}
+    - _GrassCenterColor: {r: 0.13999996, g: 0.45, b: 0.09099997, a: 1}
+    - _GrassEdgeColor: {r: 0.049999982, g: 0.17999998, b: 0.04, a: 1}
+    - _GrassShadowColor: {r: 0.6132076, g: 0.6132076, b: 0.6132076, a: 1}
+    - _GrassTopColor: {r: 0.17999998, g: 0.6, b: 0.11999995, a: 1}
     - _HighlightColor: {r: 0.1689123, g: 1, b: 0.0047169924, a: 1}
-    - _ShadowColor: {r: 0.13333334, g: 0.39607844, b: 0.09411765, a: 1}
+    - _ShadowColor: {r: 1, g: 1, b: 1, a: 1}
     - _TopColor: {r: 0.27093166, g: 0.8113208, b: 0.19517621, a: 1}
   m_BuildTextureStacks: []
