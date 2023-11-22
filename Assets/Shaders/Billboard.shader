@@ -56,8 +56,8 @@ Shader "Bliss/Billboard"
                 v2f o;
                 //o.vertex = UnityObjectToClipPos(v.vertex);
                 GrassRenderProperty prop = _Properties[instanceID];
-                float3 v0 = prop.v0;
-                float4 pos = float4(v0.xyz + GRASS_UP * _GrassHeight * (1 - v.uv.y) + prop.right * (0.5 - v.uv.x), 1);
+                float3 v0 = prop.v0_world;
+                float4 pos = float4(v0.xyz + float3(0, 1, 0) * _GrassHeight * (1 - v.uv.y) + prop.right * (0.5 - v.uv.x), 1);
                 o.vertex = mul(UNITY_MATRIX_VP, pos);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 //UNITY_TRANSFER_FOG(o,o.vertex);

@@ -624,7 +624,7 @@ MonoBehaviour:
   enableInScene: 0
   injectionPoint: 450
   cam: {fileID: 330585545}
-  maxViewDistance: 2
+  maxViewDistance: 3
   initialChunkSize: 100
   compute: {fileID: 7200000, guid: 47b8eef63a3f0a2428171aac33133dae, type: 3}
   material: {fileID: 2100000, guid: 5686b4d7df4385948953803c6e19253e, type: 2}
@@ -632,13 +632,14 @@ MonoBehaviour:
   settings:
     chunkSize: 2
     ChunkGrassSize: 250
-    LOD0Dist: 2
-    LOD1Dist: 5
+    LOD0Dist: 3
+    LOD1Dist: 6
     LOD2Dist: 10
     scaleOverride: {x: 0.007, y: 0.01, z: 1}
-    windFieldSpeed: 0.1
-    windFieldMagnitude: 1
-    grassStiffness: 1
+    windFieldSpeed: 0.02
+    windFieldMagnitude: 10
+    grassStiffness: 800
+    deltaMultiplier: 0.005
 --- !u!4 &1007344548
 Transform:
   m_ObjectHideFlags: 0

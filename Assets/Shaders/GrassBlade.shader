@@ -63,20 +63,20 @@ Shader "Bliss/GrassBlade"
                 v2f o;
                 //o.vertex = UnityObjectToClipPos(v.vertex);
                 GrassRenderProperty prop = _Properties[instanceID];
-                float3 v0 = prop.v0;
+                float3 v0 = prop.v0_world;
                 v0 += prop.right * (v.uv.x - 0.5) * _GrassWidth;
                 float3 v1 = v0;
-                v1.y += _GrassHeight * prop.v1andv2.x;
-                float3 v2 = prop.v0;
-                v2.y += _GrassHeight * prop.v1andv2.z;
-                v2.xz += _GrassWidth * prop.v1andv2.yw;
+                v1.y += _GrassHeight * prop.v1andv2_local.x;
+                float3 v2 = prop.v0_world;
+                v2.y += _GrassHeight * prop.v1andv2_local.z;
+                v2.xz += _GrassWidth * prop.v1andv2_local.yw;
                 // B(t) = (1−t)^2 ∗ v0 + 2 ∗ t ∗ (1−t) ∗ v1 + t^2 ∗ v2
                 float oneMinusT = 1 - v.uv.y;
                 o.world_pos = float4(oneMinusT * oneMinusT * v0 + 2 * v.uv.y * oneMinusT * v1 + v.uv.y * v.uv.y * v2, 1);
 
-                //o.world_pos = float4(v0 + GRASS_UP * _GrassHeight * v.uv.y + prop.right * (v.uv.x - 0.5) * _GrassWidth, 1);
+                //o.world_pos = float4(v0 + float3(0, 1, 0) * _GrassHeight * v.uv.y + prop.right * (v.uv.x - 0.5) * _GrassWidth, 1);
                 o.vertex = mul(UNITY_MATRIX_VP, o.world_pos);
-                o.normal.xyz = normalize(cross(GRASS_UP, prop.right));
+                o.normal.xyz = normalize(cross(float3(0, 1, 0), prop.right));
                 o.uv = v.uv;
                 o.color = prop.color;
                 return o;

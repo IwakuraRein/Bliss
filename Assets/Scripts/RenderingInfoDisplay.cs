@@ -50,6 +50,6 @@ public class RenderingInfoDisplay : MonoBehaviour
 
         GrassNum = grassRenderer.DrawNum;
 
-        text.text = $"FPS: {FPS}\nGrass Blades: {GrassNum}";
+        text.text = $"FPS: {FPS}\nInstance Number: {GrassNum}";
     }
 }

@@ -12,6 +12,7 @@ float _GridSize;
 int _ChunkWidth;
 int _PropertiesStartIdx;
 
+float _DeltaMultiplier;
 float _DeltaTime;
 float _Time;
 float _WindFieldMovingSpeed;
@@ -46,12 +47,15 @@ float4x4 Translation(float3 translation)
         0, 0, 0, 1);
 }
 
-float2 WindField(float2 pos)
+float3 WindField(float2 pos)
 {
     pos += _Time * _WindFieldMovingSpeed;
-    float2 ret;
-    ret.x = perlinNoise(pos * 800.0, 3);
-    ret.y = perlinNoise(-pos * 800.0, 3);
+    float3 ret;
+    ret.x = perlinNoise(pos);
+    ret.y = 0;
+    pos.x += 1;
+    pos.y = 1 - pos.y;
+    ret.z = perlinNoise(pos);
     return normalize(ret) * _WindFieldMagnitude;
 }
 
@@ -64,28 +68,48 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     int Y = id.x / _ChunkWidth;
 
     GrassRenderProperty prop = _Properties[id.x + _PropertiesStartIdx];
-    float3 v2orig = prop.v1andv2.yzw;
-    v2orig.y *= _GrassHeight;
-    v2orig.xz *= _GrassWidth;
+    float3 v2_local = prop.v1andv2_local.yzw;
+    v2_local.y *= _GrassHeight;
+    v2_local.xz *= _GrassWidth;
 
     // compute v0
-    float dx = hash(float(id.x)) * 2.0 - 1.0;
-    float dy = hash(dx) * 2.0 - 1.0;
+    float dx = _terrainHash(float(id.x)) * 2.0 - 1.0;
+    float dy = _terrainHash(dx) * 2.0 - 1.0;
     dx += X; dy += Y;
-    float2 v0 = float2(_GridOrigin.x + _GridSize * dx, _GridOrigin.y + _GridSize * dy);
+    float2 pos2d = float2(_GridOrigin.x + _GridSize * dx, _GridOrigin.y + _GridSize * dy);
 
     // compute right dir
-    float4x4 rotMat = RotateY(hash(dy) * 6.28318531);
+    float4x4 rotMat = RotateY(_terrainHash(dy) * 6.28318531);
     float4 right = mul(rotMat, float4(1, 0, 0, 0));
     right.xyz = normalize(right.xyz);
 
     // update v2 and v1
-    float2 wind = WindField(v0);
-    float3 force = float3(wind.x + _Gravity.x, _Gravity.y, _Gravity.z + wind.y);
+    float3 v2_local_orig = float3(0, _GrassHeight, 0);
+    float3 force = (v2_local_orig - v2_local) * _GrassStiffness; // recovery;
+    force += WindField(pos2d); // wind
+    force += _Gravity; // gravity
+    force *= _DeltaTime * _DeltaMultiplier;
+    v2_local += force ;
+    if (v2_local.y < 0) v2_local -= force; // make sure grass is above ground
+
+    float3 v0_local = float3(0, 0, 0);
+    float lproj = length(v2_local.xz);
+    float3 v1_local = float3(v0_local.x, _GrassHeight * max(1 - lproj / _GrassHeight, 0.05 * max(lproj / _GrassHeight, 1)), v0_local.z);
+    float l0 = length(v0_local - v2_local);
+    float l1 = length(v0_local - v1_local) + length(v2_local - v1_local);
+    float l = (2 * l0 + l1) * 0.33333333333;
+    float r = _GrassHeight / l;
+    float3 v1new = v0_local + r * (v1_local - v0_local);
+    float3 v2new = v1new + r * (v2_local - v1_local);
 
 
     // write the result
-    prop.v0 = float4(v0.x, GetHeight(v0), v0.y, 1);
+    prop.v0_world = float4(pos2d.x, GetHeight(pos2d), pos2d.y, 1);
+    prop.v1andv2_local.x = v1new.y / _GrassHeight;
+    prop.v1andv2_local.z = v2new.y / _GrassHeight;
+    prop.v1andv2_local.yw = v2new.xz / _GrassWidth;
     prop.right = right;
+
+
     _Properties[id.x + _PropertiesStartIdx] = prop;
 }

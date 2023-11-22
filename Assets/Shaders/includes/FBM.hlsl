@@ -2,46 +2,42 @@
 #define FBM_HLSL
 
 /// <summary>
-/// reference: https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+/// reference: https://www.shadertoy.com/view/lsf3WH
 /// </summary>
 
-#ifndef PI
-#define PI 3.14159265359
-#endif	
+float _fbmHash(in int2 p) 
+{
+	// 2D -> 1D
+	int n = p.x * 3 + p.y * 113;
 
-float rand(float2 c) {
-	return frac(sin(dot(c.xy, float2(12.9898, 78.233))) * 43758.5453);
+	// 1D hash by Hugo Elias
+	n = (n << 13) ^ n;
+	n = n * (n * n * 15731 + 789221) + 1376312589;
+	return -1.0 + 2.0 * float(n & 0x0fffffff) / float(0x0fffffff);
+}
+float _fbmNoise(in float2 p)
+{
+    int2 i = int2(floor(p));
+    float2 f = frac(p);
+
+    // quintic interpolant
+    float2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+
+    return lerp(lerp(_fbmHash(i + int2(0, 0)),
+		_fbmHash(i + int2(1, 0)), u.x),
+		lerp(_fbmHash(i + int2(0, 1)),
+			_fbmHash(i + int2(1, 1)), u.x), u.y);
 }
 
-float noise(float2 p, float freq) {
-	float unit = /*screenWidth*/ 1000.0 / freq;
-	float2 ij = floor(p / unit);
-	float2 xy = fmod(p, unit) / unit;
-	//xy = 3.*xy*xy-2.*xy*xy*xy;
-	xy = .5 * (1. - cos(PI * xy));
-	float a = rand((ij + float2(0., 0.)));
-	float b = rand((ij + float2(1., 0.)));
-	float c = rand((ij + float2(0., 1.)));
-	float d = rand((ij + float2(1., 1.)));
-	float x1 = lerp(a, b, xy.x);
-	float x2 = lerp(c, d, xy.x);
-	return lerp(x1, x2, xy.y);
-}
-
-float perlinNoise(float2 p, int res) {
-	float persistance = .5;
-	float n = 0.;
-	float normK = 0.;
-	float f = 4.;
-	float amp = 1.;
-	for (int i = 0; i < res; i++) {
-		n += amp * noise(p, f);
-		f *= 2.;
-		normK += amp;
-		amp *= persistance;
-	}
-	float nf = n / normK;
-	return nf * nf * nf * nf;
+float perlinNoise(float2 p) {
+    float f = 0.0;
+    p *= 8.0;
+    float2x2 m = float2x2(1.6, 1.2, -1.2, 1.6);
+    f = 0.5000 * _fbmNoise(p); p = mul(m, p);
+    f += 0.2500 * _fbmNoise(p); p = mul(m, p);
+    f += 0.1250 * _fbmNoise(p); p = mul(m, p);
+    f += 0.0625 * _fbmNoise(p); p = mul(m, p);
+    return f;
 }
 
 #endif

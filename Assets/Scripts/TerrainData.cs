@@ -13,10 +13,18 @@ namespace Bliss
     /// </summary>
     public class TerrainData
     {
-        const int OCTAVES = 4;
-        const float NORMAL_SAMPLE_DELTA = 0.01f;
-        const float TILE_WIDTH = 1024f;
-        const float HEIGHT_MAGNITUDE = 0.6f;
+        public const int OCTAVES = 4;
+        public const float NORMAL_SAMPLE_DELTA = 0.01f;
+        public const float TILE_WIDTH = 1024f;
+        public const float HEIGHT_MAGNITUDE = 0.6f;
+
+        public static float MaxHeight
+        {
+            get
+            {
+                return HEIGHT_MAGNITUDE * 0.5f + 0.5f;
+            }
+        }
         public static float hash(float n)
         {
             // This yileds different values than shader

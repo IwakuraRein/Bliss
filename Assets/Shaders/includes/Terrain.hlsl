@@ -13,7 +13,7 @@
 #define TILE_WIDTH 1024.0
 #define HEIGHT_MAGNITUDE 0.6
 
-float hash(float n) {
+float _terrainHash(float n) {
 	//return frac(sin(n) * 43758.5453123);
 
 	// reference: https://www.shadertoy.com/view/4djSRW
@@ -25,17 +25,17 @@ float hash(float n) {
 
 // Value noise generator. Returns
 // three values on [-1, +1]
-float3 noised(float2 x) {
+float3 _terrainNoise(float2 x) {
 	float2 p = floor(x);
 	float2 f = frac(x);
 
 	float n = p.x + p.y * TILE_WIDTH;
 
 	// Grab noise values at four corners of a square
-	float a = hash(n + 0.0);
-	float b = hash(n + 1.0);
-	float c = hash(n + TILE_WIDTH);
-	float d = hash(n + TILE_WIDTH + 1.0);
+	float a = _terrainHash(n + 0.0);
+	float b = _terrainHash(n + 1.0);
+	float c = _terrainHash(n + TILE_WIDTH);
+	float d = _terrainHash(n + TILE_WIDTH + 1.0);
 
 	// use smoothstep-filtered lerp for one component and compute the derivatives for the others
 	// See https://iquilezles.org/articles/morenoise
@@ -60,7 +60,7 @@ float GetHeight(float2 p)
 	// Add multiple octaves of noise, chosen from points that spiral outward
 	// to avoid hitting the tiling period of the noise function.
 	for (int i = 0; i < OCTAVES; ++i) {
-		float3 n = noised(p);
+		float3 n = _terrainNoise(p);
 		d += n.yz;
 
 		// The 1 + |d|^2 denominator creates the mountainous lumpiness.
