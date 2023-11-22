@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
@@ -49,6 +48,9 @@ namespace Bliss
         public float LOD2Dist;
 
         public Vector3 scaleOverride;
+        public float windFieldSpeed;
+        public float windFieldMagnitude;
+        public float grassStiffness;
         public int GrassNumPerChunk
         {
             get { return ChunkGrassSize * ChunkGrassSize; }
@@ -59,15 +61,14 @@ namespace Bliss
     {
         struct GrassRenderProperty
         {
-            float4 v0;
-            float4 v1;
-            float4 v2;
-            float4 right;
-            float4 color;
+            public Vector4 v0;
+            public Vector4 v1andv2;
+            public Vector4 right;
+            public Vector4 color;
             public static int Size()
             {
                 return
-                    sizeof(float) * 4 * 5; 
+                    sizeof(float) * 4 * 4; 
             }
         };
         public float GrassHeight
@@ -109,8 +110,20 @@ namespace Bliss
             int kernel = compute.FindKernel("CSMain");
             // Argument buffer used by DrawMeshInstancedIndirect.
             // It has 5 uint values
+
+            GrassRenderProperty[] properties = new GrassRenderProperty[size];
+            for (int i = 0; i < size; i++)
+            {
+                properties[i].v1andv2.x = 1f;
+                properties[i].v1andv2.y = 0f;
+                properties[i].v1andv2.z = 1f;
+                properties[i].v1andv2.w = 0f;
+                properties[i].color = Vector4.one;
+            }
+
             drawIndirectArgsBuffer = new ComputeBuffer(1, 5 * sizeof(uint), ComputeBufferType.IndirectArguments);
             meshRenderPropertyBuffer = new ComputeBuffer(size, GrassRenderProperty.Size());
+            meshRenderPropertyBuffer.SetData(properties);
             compute.SetBuffer(kernel, "_Properties", meshRenderPropertyBuffer);
             material.SetBuffer("_Properties", meshRenderPropertyBuffer);
         }
@@ -144,6 +157,12 @@ namespace Bliss
 
                 int PropertiesStartIdx = 0;
 
+                compute.SetVector("_Gravity", Physics.gravity);
+                compute.SetFloat("_DeltaTime", Time.deltaTime);
+                compute.SetFloat("_Time", Time.time);
+                compute.SetFloat("_WindFieldMovingSpeed", settings.windFieldSpeed);
+                compute.SetFloat("_WindFieldMagnitude", settings.windFieldMagnitude);
+                compute.SetFloat("_GrassStiffness", settings.grassStiffness);
                 compute.SetFloat("_GrassHeight", GrassHeight);
                 compute.SetFloat("_GrassWidth", GrassWidth);
                 material.SetFloat("_GrassHeight", GrassHeight);

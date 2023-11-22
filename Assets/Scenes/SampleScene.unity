@@ -628,7 +628,7 @@ MonoBehaviour:
   initialChunkSize: 100
   compute: {fileID: 7200000, guid: 47b8eef63a3f0a2428171aac33133dae, type: 3}
   material: {fileID: 2100000, guid: 5686b4d7df4385948953803c6e19253e, type: 2}
-  mesh: {fileID: -618688330650084413, guid: 342464d477a8d47449956f8abf006c23, type: 3}
+  mesh: {fileID: -2432090755550338912, guid: 82a13751974c0f54e85d5e5c4633836d, type: 3}
   settings:
     chunkSize: 2
     ChunkGrassSize: 250
@@ -636,6 +636,9 @@ MonoBehaviour:
     LOD1Dist: 5
     LOD2Dist: 10
     scaleOverride: {x: 0.007, y: 0.007, z: 1}
+    windFieldSpeed: 0.1
+    windFieldMagnitude: 1
+    grassStiffness: 1
 --- !u!4 &1007344548
 Transform:
   m_ObjectHideFlags: 0

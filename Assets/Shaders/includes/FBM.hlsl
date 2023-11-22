@@ -5,6 +5,10 @@
 /// reference: https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
 /// </summary>
 
+#ifndef PI
+#define PI 3.14159265359
+#endif	
+
 float rand(float2 c) {
 	return frac(sin(dot(c.xy, float2(12.9898, 78.233))) * 43758.5453);
 }
