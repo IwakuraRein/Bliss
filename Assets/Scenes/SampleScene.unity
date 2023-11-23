@@ -625,12 +625,13 @@ MonoBehaviour:
   injectionPoint: 450
   cam: {fileID: 330585545}
   maxViewDistance: 50
-  LOD0Num: 9
-  LOD1Num: 20
-  LOD2Num: 50
   compute: {fileID: 7200000, guid: 47b8eef63a3f0a2428171aac33133dae, type: 3}
   material: {fileID: 2100000, guid: 5686b4d7df4385948953803c6e19253e, type: 2}
-  mesh: {fileID: -618688330650084413, guid: 342464d477a8d47449956f8abf006c23, type: 3}
+  LOD: 0a0000001e00000032000000
+  meshes:
+  - {fileID: -2961339271964454098, guid: 342464d477a8d47449956f8abf006c23, type: 3}
+  - {fileID: 1177448129903720284, guid: eff4332901b263d42958f8c20b2eeda6, type: 3}
+  - {fileID: 8774556105089513024, guid: 4dda9d1a8ce4beb4d97d6cee23ae3fce, type: 3}
   settings:
     chunkSize: 2
     ChunkGrassSize: 250
