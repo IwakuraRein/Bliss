@@ -621,20 +621,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a38c210ffdb79d41b555d039fc706f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enableInScene: 0
+  enableInScene: 1
   injectionPoint: 450
   cam: {fileID: 330585545}
-  maxViewDistance: 3
-  initialChunkSize: 100
+  maxViewDistance: 50
+  LOD0Num: 9
+  LOD1Num: 20
+  LOD2Num: 50
   compute: {fileID: 7200000, guid: 47b8eef63a3f0a2428171aac33133dae, type: 3}
   material: {fileID: 2100000, guid: 5686b4d7df4385948953803c6e19253e, type: 2}
   mesh: {fileID: -618688330650084413, guid: 342464d477a8d47449956f8abf006c23, type: 3}
   settings:
     chunkSize: 2
     ChunkGrassSize: 250
-    LOD0Dist: 3
-    LOD1Dist: 6
-    LOD2Dist: 10
     scaleOverride: {x: 0.007, y: 0.01, z: 1}
     windFieldSpeed: 0.02
     windFieldMagnitude: 10

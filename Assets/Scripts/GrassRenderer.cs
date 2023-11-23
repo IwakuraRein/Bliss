@@ -75,7 +75,7 @@ namespace Bliss
 
     public class GrassPass : ScriptableRenderPass
     {
-        struct GrassRenderProperty
+        internal struct GrassRenderProperty
         {
             public Vector4 v0;
             public Vector4 v1andv2;
@@ -107,6 +107,8 @@ namespace Bliss
         internal ComputeShader compute;
         internal bool enableInSceneViewPort = false;
 
+        internal int chunkSize;
+        internal GrassRenderProperty[] initialProperties;
         internal ComputeBuffer meshRenderPropertyBuffer; // store matrics for grass
         internal ComputeBuffer drawIndirectArgsBuffer; // store number, lod, grid origin position, etc
         internal GrassChunk[] chunks;
@@ -126,29 +128,60 @@ namespace Bliss
             renderPassEvent = injectionPoint;
             //InitializeBuffers(InitialSize);
         }
-        public void InitializeBuffers(int chunkSize)
+        public void InitializeBuffers(int size)
         {
+            chunkSize = size;
             Dispose();
             int kernel = compute.FindKernel("CSMain");
             // Argument buffer used by DrawMeshInstancedIndirect.
             // It has 5 uint values
 
-            GrassRenderProperty[] properties = new GrassRenderProperty[chunkSize * settings.GrassNumPerChunk];
-            for (int i = 0; i < chunkSize * settings.GrassNumPerChunk; i++)
+            if (initialProperties == null || initialProperties.Length != settings.GrassNumPerChunk)
             {
-                properties[i].v1andv2.x = 1f;
-                properties[i].v1andv2.y = 0f;
-                properties[i].v1andv2.z = 1f;
-                properties[i].v1andv2.w = 0f;
-                properties[i].color = Vector4.one;
+                initialProperties = new GrassRenderProperty[settings.GrassNumPerChunk];
+                for (int i = 0; i < settings.GrassNumPerChunk; i++)
+                {
+                    initialProperties[i].v1andv2.x = 1f;
+                    initialProperties[i].v1andv2.y = 0f;
+                    initialProperties[i].v1andv2.z = 1f;
+                    initialProperties[i].v1andv2.w = 0f;
+                    initialProperties[i].color = Vector4.one;
+                }
             }
 
             drawIndirectArgsBuffer  = new ComputeBuffer(1, 5 * sizeof(uint), ComputeBufferType.IndirectArguments);
 
             meshRenderPropertyBuffer = new ComputeBuffer(chunkSize * settings.GrassNumPerChunk, GrassRenderProperty.Size());
-            meshRenderPropertyBuffer.SetData(properties);
+            for (int i = 0; i < chunkSize; ++i)
+            {
+                meshRenderPropertyBuffer.SetData(initialProperties, 0, i * settings.GrassNumPerChunk, settings.GrassNumPerChunk);
+            }
             compute.SetBuffer(kernel, "_Properties", meshRenderPropertyBuffer);
             material.SetBuffer("_Properties", meshRenderPropertyBuffer);
+        }
+        public void InitializeChunk(int chunkIndex)
+        {
+            if (chunkSize == 0)
+            {
+                Debug.LogError($"No chunk or compute buffer is allocated"); return;
+            }
+            if (chunkIndex >= chunkSize)
+            {
+                Debug.LogError($"Chunk index exceeds chunk size"); return;
+            }
+            if (initialProperties == null || initialProperties.Length != settings.GrassNumPerChunk)
+            {
+                initialProperties = new GrassRenderProperty[settings.GrassNumPerChunk];
+                for (int i = 0; i < settings.GrassNumPerChunk; i++)
+                {
+                    initialProperties[i].v1andv2.x = 1f;
+                    initialProperties[i].v1andv2.y = 0f;
+                    initialProperties[i].v1andv2.z = 1f;
+                    initialProperties[i].v1andv2.w = 0f;
+                    initialProperties[i].color = Vector4.one;
+                }
+            }
+            meshRenderPropertyBuffer.SetData(initialProperties, 0, chunkIndex * settings.GrassNumPerChunk, settings.GrassNumPerChunk);
         }
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
@@ -432,6 +465,7 @@ namespace Bliss
             #endregion
 
             #region write chunks. if the same chunk exists, map it to the same buffer position.
+            Profiler.BeginSample("Write Chunks");
             int chunkNum = Mathf.Min(LOD0Num, chunks.Count);
             grassPass0.chunks = new GrassChunk[chunkNum];
             var newBufferMap = new Dictionary<Vector2Int, int>();
@@ -461,11 +495,16 @@ namespace Bliss
                     if (counter >= chunkNum) break;
                     if (chunkBufferMap.ContainsKey(chunk.grid))
                     {
+                        // already exists. no need to write anything 
+
                         chunk.index = chunkBufferMap[chunk.grid];
                         grassPass0.chunks[chunk.index] = chunk;
                         availableIndices.Remove(chunk.index);
+
+                        newBufferMap.Add(chunk.grid, chunk.index);
                     }
-                    else remainings.Add(chunk);
+                    else
+                        remainings.Add(chunk);
                     counter++;
                 }
                 foreach (var chunk in remainings)
@@ -474,10 +513,14 @@ namespace Bliss
                     availableIndices.Remove(idx);
                     chunk.index = idx;
                     grassPass0.chunks[idx] = chunk;
+
                     newBufferMap.Add(chunk.grid, idx);
+                    counter++;
+                    grassPass0.InitializeChunk(idx);
                 }
             }
             chunkBufferMap = newBufferMap;
+            Profiler.EndSample();
             #endregion
         }
         private void OnDrawGizmosSelected()
