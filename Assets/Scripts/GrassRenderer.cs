@@ -9,7 +9,7 @@ using UnityEngine.Rendering.Universal;
 
 namespace Bliss
 {
-    public class GrassChunk : IComparable<GrassChunk>
+    public struct GrassChunk : IComparable<GrassChunk>
     {
         //public Vector2Int grid;
         public float X
@@ -466,18 +466,20 @@ namespace Bliss
 
             #region write chunks. if the same chunk exists, map it to the same buffer position.
             Profiler.BeginSample("Write Chunks");
+            bool firstRun = grassPass0.chunks == null;
             int chunkNum = Mathf.Min(LOD0Num, chunks.Count);
-            grassPass0.chunks = new GrassChunk[chunkNum];
             var newBufferMap = new Dictionary<Vector2Int, int>();
-            if (grassPass0.BufferSize == 0) // first run
+            if (firstRun) // first run
             {
+                grassPass0.chunks = new GrassChunk[LOD0Num];
                 int idx = 0;
                 foreach (var chunk in chunks)
                 {
                     if (idx >= chunkNum) break;
-                    chunk.index = idx++;
-                    grassPass0.chunks[chunk.index] = chunk;
-                    newBufferMap.Add(chunk.grid, chunk.index);
+                    grassPass0.chunks[idx] = chunk;
+                    grassPass0.chunks[idx].index = idx;
+                    newBufferMap.Add(chunk.grid, idx);
+                    idx++;
                 }
             }
             else
@@ -495,13 +497,12 @@ namespace Bliss
                     if (counter >= chunkNum) break;
                     if (chunkBufferMap.ContainsKey(chunk.grid))
                     {
-                        // already exists. no need to write anything 
+                        int idx = chunkBufferMap[chunk.grid];
+                        grassPass0.chunks[idx] = chunk;
+                        grassPass0.chunks[idx].index = idx;
+                        availableIndices.Remove(idx);
 
-                        chunk.index = chunkBufferMap[chunk.grid];
-                        grassPass0.chunks[chunk.index] = chunk;
-                        availableIndices.Remove(chunk.index);
-
-                        newBufferMap.Add(chunk.grid, chunk.index);
+                        newBufferMap.Add(chunk.grid, idx);
                     }
                     else
                         remainings.Add(chunk);
@@ -511,11 +512,9 @@ namespace Bliss
                 {
                     int idx = availableIndices.First();
                     availableIndices.Remove(idx);
-                    chunk.index = idx;
                     grassPass0.chunks[idx] = chunk;
-
+                    grassPass0.chunks[idx].index = idx;
                     newBufferMap.Add(chunk.grid, idx);
-                    counter++;
                     grassPass0.InitializeChunk(idx);
                 }
             }
