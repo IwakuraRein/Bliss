@@ -59,9 +59,9 @@ namespace Bliss
         [SerializeField]
         bool enableInScene = false;
         [SerializeField]
-        RenderPassEvent injectionPoint = RenderPassEvent.BeforeRenderingOpaques;
+        internal RenderPassEvent injectionPoint = RenderPassEvent.BeforeRenderingOpaques;
         [SerializeField]
-        Material material;
+        internal Material material;
 
         TerrainPass terrainPass;
 

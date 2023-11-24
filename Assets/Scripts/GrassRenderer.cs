@@ -2,11 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.UIElements;
 
 namespace Bliss
 {
@@ -117,6 +117,9 @@ namespace Bliss
         internal ComputeBuffer[] drawIndirectArgsBuffers; // store number, lod, grid origin position, etc
         internal GrassChunk[] chunks;
         internal GrassPassSettings settings;
+
+        internal Vector3 mouseClickPos;
+        internal int mouseClicked;
 
         public int BufferSize
         {
@@ -277,6 +280,8 @@ namespace Bliss
     public class GrassRenderer : MonoBehaviour
     {
         [SerializeField]
+        TerrainRenderer terrainRenderer;
+        [SerializeField]
         bool enableInScene = false;
         [SerializeField]
         RenderPassEvent injectionPoint = RenderPassEvent.BeforeRenderingTransparents;
@@ -303,6 +308,7 @@ namespace Bliss
         Dictionary<Vector2Int, int>[] chunkBufferMaps;
         SortedSet<GrassChunk> chunkSet;
 
+        Nullable<Vector3> RayCastPos;
         public int DrawNum
         {
             get
@@ -335,10 +341,33 @@ namespace Bliss
             GenerateChunks();
             Profiler.EndSample();
 
+            Profiler.BeginSample("Mouse Ray March");
+            RayCast();
+            Profiler.EndSample();
+        }
+        void RayCast()
+        {
+            RayCastPos = null;
+            if (Input.GetMouseButtonDown(0))
+            {
+                Vector3 mousePos = Input.mousePosition;
+                mousePos.z = Camera.main.nearClipPlane;
+                Vector3 target = cam.ScreenToWorldPoint(mousePos);
+                Vector3 dir = Vector3.Normalize(target - cam.transform.position);
+                float3 pos = cam.transform.position;
+                //if (TerrainData.RayMarch(ref pos, dir, 0.8f, 1000f))
+                if (TerrainData.RayMarch(ref pos, dir, terrainRenderer.material.GetFloat("_RayMarchStep"), terrainRenderer.material.GetFloat("_RayMarchMaxDistance")))
+                {
+                    RayCastPos = (Vector3)pos - dir * 0.1f;
+                    Debug.Log($"Ray hits at {RayCastPos}");
+                }
+            }
         }
         void OnBeginCamera(ScriptableRenderContext context, Camera cam)
         {
             grassPass.enableInSceneViewPort = enableInScene;
+            grassPass.mouseClicked = RayCastPos.HasValue ? 1 : 0;
+            grassPass.mouseClickPos = RayCastPos.HasValue ? RayCastPos.Value : Vector3.zero;
             grassPass.settings = settings;
             cam.GetUniversalAdditionalCameraData()
                 .scriptableRenderer.EnqueuePass(grassPass);

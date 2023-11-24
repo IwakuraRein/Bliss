@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Windows;
 using static Unity.Mathematics.math;
 
 namespace Bliss
@@ -17,7 +18,43 @@ namespace Bliss
         public const float NORMAL_SAMPLE_DELTA = 0.01f;
         public const float TILE_WIDTH = 1024f;
         public const float HEIGHT_MAGNITUDE = 0.6f;
+        public static bool RayMarch(ref float3 rayPos, float3 rayDir, float step = 0.5f, float maxDistance = 1000f)
+        {
+            float time = 0f;
+            float lastHeight = 0f;
+            float lastY = 0f;
+            float deltaT = 0.01f;
+            float3 pos = float3(0);
+            float height = 0;
+            bool hitFound = false;
+            for (int index = 0; index < 150; ++index)
+            {
+                pos = rayPos + rayDir * time;
+                height = GetHeight(pos.xz);
+                if (height > pos.y)
+                {
+                    hitFound = true;
+                    break;
+                }
 
+                deltaT = max(0.01f * (float)time, (pos.y - height) * step);
+                time += deltaT;
+
+                if (time > maxDistance)
+                    break;
+
+                lastHeight = height;
+                lastY = pos.y;
+            }
+
+            if (hitFound)
+            {
+                time = time - deltaT + deltaT * (lastHeight - lastY) / (pos.y - lastY - height + lastHeight);
+                rayPos += rayDir * time;
+            }
+
+            return hitFound;
+        }
         public static float MaxHeight
         {
             get

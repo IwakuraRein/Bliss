@@ -637,6 +637,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a38c210ffdb79d41b555d039fc706f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  terrainRenderer: {fileID: 870086600}
   enableInScene: 1
   injectionPoint: 450
   cam: {fileID: 330585545}
