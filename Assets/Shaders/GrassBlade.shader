@@ -57,12 +57,13 @@ Shader "Bliss/GrassBlade"
             float4 _GrassEdgeColor;
             float4 _GrassShadowColor;
 
+            int _GrassRenderPropertyStartIndex;
 
             v2f vert(appdata v, uint instanceID: SV_InstanceID)
             {
                 v2f o;
                 //o.vertex = UnityObjectToClipPos(v.vertex);
-                GrassRenderProperty prop = _Properties[instanceID];
+                GrassRenderProperty prop = _Properties[instanceID + _GrassRenderPropertyStartIndex];
                 float3 v0 = prop.v0_world;
                 v0 += prop.right * (v.uv.x - 0.5) * _GrassWidth;
                 float3 v1 = v0;

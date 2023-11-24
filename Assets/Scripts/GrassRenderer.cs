@@ -261,9 +261,10 @@ namespace Bliss
                     args[1] = (uint)(settings.GrassNumPerChunk * LODs[i]);
                     args[2] = (uint)meshes[i].GetIndexStart(0);
                     args[3] = (uint)meshes[i].GetBaseVertex(0);
-                    args[4] = (uint)(chunkCount * settings.GrassNumPerChunk);
+                    //args[4] = (uint)(chunkCount * settings.GrassNumPerChunk); // doesn't work
+                    cmd.SetGlobalInt("_GrassRenderPropertyStartIndex", chunkCount * settings.GrassNumPerChunk);
                     drawIndirectArgsBuffers[i].SetData(args);
-                    cmd.DrawMeshInstancedIndirect(meshes[i], 0, material, 0, drawIndirectArgsBuffers[i]);
+                    cmd.DrawMeshInstancedIndirect(meshes[i], 0, material, 0, drawIndirectArgsBuffers[i]); 
                     chunkCount += LODs[i];
                 }
             }
@@ -312,7 +313,7 @@ namespace Bliss
         Vector2[] frustumTriangleLocal = new Vector2[3];
 
         GrassPass grassPass;
-        Dictionary<Vector2Int, int> chunkBufferMap = new Dictionary<Vector2Int, int>();
+        Dictionary<Vector2Int, int>[] chunkBufferMaps;
 
         public int DrawNum
         {
@@ -479,58 +480,72 @@ namespace Bliss
             #region write chunks. if the same chunk exists, map it to the same buffer position.
             Profiler.BeginSample("Write Chunks");
             bool firstRun = grassPass.chunks == null;
-            int chunkNum = Mathf.Min(grassPass.chunkSize, chunks.Count);
-            var newBufferMap = new Dictionary<Vector2Int, int>();
-            if (firstRun) // first run
+            if (grassPass.chunkSize > chunks.Count)
             {
+                Debug.LogError($"The chunks generated are less than compute buffer's size.");
+                return;
+            }
+            if (firstRun)
+            {
+                chunkBufferMaps = new Dictionary<Vector2Int, int>[LOD.Length];
+                for (int i = 0; i < LOD.Length; ++i) chunkBufferMaps[i] = new Dictionary<Vector2Int, int>();
                 grassPass.chunks = new GrassChunk[grassPass.chunkSize];
                 int idx = 0;
-                foreach (var chunk in chunks)
+                var it = chunks.GetEnumerator();
+                for (int i = 0; i < LOD.Length; ++i)
                 {
-                    if (idx >= chunkNum) break;
-                    grassPass.chunks[idx] = chunk;
-                    grassPass.chunks[idx].index = idx;
-                    newBufferMap.Add(chunk.grid, idx);
-                    idx++;
+                    int counter = 0;
+                    while (true)
+                    {
+                        if (++counter > LOD[i]) break;
+                        it.MoveNext();
+                        //if (idx >= chunkNum) break;
+                        grassPass.chunks[idx] = it.Current;
+                        grassPass.chunks[idx].index = idx;
+                        chunkBufferMaps[i].Add(it.Current.grid, idx);
+                        idx++;
+                    }
                 }
             }
             else
             {
-                if (grassPass.BufferSize / settings.GrassNumPerChunk < chunkNum)
+                var it = chunks.GetEnumerator();
+                int startIdx = 0;
+                for (int i = 0; i < LOD.Length; ++i)
                 {
-                    Debug.LogError($"The chunks generated exceed compute buffer's size.");
-                    return;
-                }
-                HashSet<int> availableIndices = new HashSet<int>(Enumerable.Range(0, chunkNum));
-                HashSet<GrassChunk> remainings = new HashSet<GrassChunk>();
-                int counter = 0;
-                foreach (var chunk in chunks)
-                {
-                    if (counter >= chunkNum) break;
-                    if (chunkBufferMap.ContainsKey(chunk.grid))
+                    var newBufferMap = new Dictionary<Vector2Int, int>();
+                    var availableIndices = new HashSet<int>(Enumerable.Range(startIdx, LOD[i]));
+                    startIdx += LOD[i];
+                    var remainings = new HashSet<GrassChunk>();
+                    int counter = 0;
+                    while (true)
                     {
-                        int idx = chunkBufferMap[chunk.grid];
+                        if (++counter > LOD[i]) break;
+                        it.MoveNext();
+                        if (chunkBufferMaps[i].ContainsKey(it.Current.grid))
+                        {
+                            int idx = chunkBufferMaps[i][it.Current.grid];
+                            grassPass.chunks[idx] = it.Current;
+                            grassPass.chunks[idx].index = idx;
+                            availableIndices.Remove(idx);
+
+                            newBufferMap.Add(it.Current.grid, idx);
+                        }
+                        else
+                            remainings.Add(it.Current);
+                    }
+                    foreach (var chunk in remainings)
+                    {
+                        int idx = availableIndices.First();
+                        availableIndices.Remove(idx);
                         grassPass.chunks[idx] = chunk;
                         grassPass.chunks[idx].index = idx;
-                        availableIndices.Remove(idx);
-
                         newBufferMap.Add(chunk.grid, idx);
+                        grassPass.InitializeChunk(idx);
                     }
-                    else
-                        remainings.Add(chunk);
-                    counter++;
-                }
-                foreach (var chunk in remainings)
-                {
-                    int idx = availableIndices.First();
-                    availableIndices.Remove(idx);
-                    grassPass.chunks[idx] = chunk;
-                    grassPass.chunks[idx].index = idx;
-                    newBufferMap.Add(chunk.grid, idx);
-                    grassPass.InitializeChunk(idx);
+                    chunkBufferMaps[i] = newBufferMap;
                 }
             }
-            chunkBufferMap = newBufferMap;
             Profiler.EndSample();
             #endregion
         }
