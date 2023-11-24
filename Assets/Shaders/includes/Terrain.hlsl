@@ -14,13 +14,15 @@
 #define HEIGHT_MAGNITUDE 0.6
 
 float _terrainHash(float n) {
-	//return frac(sin(n) * 43758.5453123);
+	// this generates different results in CPU
+	return frac(sin(n) * 43758.5453123);
 
 	// reference: https://www.shadertoy.com/view/4djSRW
-	n = frac(n * .1031);
-	n *= n + 33.33;
-	n *= n + n;
-	return frac(n);
+	// this generates different results in compute shaders. haven't figure out why.
+	//n = frac(n * .1031);
+	//n *= n + 33.33;
+	//n *= n + n;
+	//return frac(n);
 }
 
 // Value noise generator. Returns

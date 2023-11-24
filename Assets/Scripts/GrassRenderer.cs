@@ -51,8 +51,8 @@ namespace Bliss
             //    if (other.cameraLocalCoord.z >= 0) return 1;
             //    return 0;
             //}
-            //if (Vector3.Magnitude(cameraLocalCoord) < Vector3.Magnitude(other.cameraLocalCoord)) return -1;
-            if (MathF.Abs(cameraLocalCoord.z) < MathF.Abs(other.cameraLocalCoord.z)) return -1;
+            if (Vector3.Magnitude(cameraLocalCoord) < Vector3.Magnitude(other.cameraLocalCoord)) return -1;
+            //if (MathF.Abs(cameraLocalCoord.z) < MathF.Abs(other.cameraLocalCoord.z)) return -1;
             return 1;
         }
     }
@@ -301,6 +301,7 @@ namespace Bliss
 
         GrassPass grassPass;
         Dictionary<Vector2Int, int>[] chunkBufferMaps;
+        SortedSet<GrassChunk> chunkSet;
 
         public int DrawNum
         {
@@ -376,20 +377,15 @@ namespace Bliss
             #endregion
 
             #region raterize the triangle
-            //var addedChunks = new HashSet<Vector2Int>();
-            var chunks = new SortedSet<GrassChunk>();
+            chunkSet = new SortedSet<GrassChunk>();
 
             void AddChunk(Vector2Int coord)
             {
-                //if (!addedChunks.Contains(coord))
-                //{
-                    var chunk = new GrassChunk(coord, cam, settings.chunkSize, -1);
-                    if (IsChunkVisible(chunk))
-                    {
-                        chunks.Add(chunk);
-                        //addedChunks.Add(coord);
-                    }
-                //}
+                var chunk = new GrassChunk(coord, cam, settings.chunkSize, -1);
+                if (IsChunkVisible(chunk))
+                {
+                    chunkSet.Add(chunk);
+                }
             }
 
             void Swap<T>(ref T x, ref T y) { var tmp = x; x = y; y = tmp; }
@@ -407,7 +403,7 @@ namespace Bliss
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
-                    for (int x = Mathf.Min(xx1, xx2); x <= Mathf.Max(xx1, xx2); x++)
+                    for (int x = Mathf.Min(xx1, xx2)-1; x <= Mathf.Max(xx1, xx2)+1; x++)
                     {
                         var coord = new Vector2Int(x, scanlineY);
                         AddChunk(coord);
@@ -428,7 +424,7 @@ namespace Bliss
                 {
                     int xx1 = GridIndex(curx1);
                     int xx2 = GridIndex(curx2);
-                    for (int x = Mathf.Min(xx1, xx2); x <= Mathf.Max(xx1, xx2); x++)
+                    for (int x = Mathf.Min(xx1, xx2)-1; x <= Mathf.Max(xx1, xx2)+1; x++)
                     {
                         var coord = new Vector2Int(x, scanlineY);
                         AddChunk(coord);
@@ -472,7 +468,7 @@ namespace Bliss
             //    Debug.LogError($"The chunks generated are less than compute buffer's size.");
             //    return;
             //}
-            if (chunks.Count > 0)
+            if (chunkSet.Count > 0)
             {
                 if (firstRun)
                 {
@@ -490,12 +486,12 @@ namespace Bliss
                             while (true)
                             {
                                 if (++counter > LOD[i]) break;
-                                var current = chunks.ElementAt(it);
+                                var current = chunkSet.ElementAt(it);
                                 grassPass.chunks[idx] = current;
                                 grassPass.chunks[idx].index = idx;
                                 chunkBufferMaps[i].Add(current.grid, idx);
                                 idx++;
-                                if (++it >= chunks.Count)
+                                if (++it >= chunkSet.Count)
                                 {
                                     reachedEnd = true;
                                     break;
@@ -522,7 +518,7 @@ namespace Bliss
                             while (true)
                             {
                                 if (++counter > LOD[i]) break;
-                                var current = chunks.ElementAt(it);
+                                var current = chunkSet.ElementAt(it);
                                 if (chunkBufferMaps[i].ContainsKey(current.grid))
                                 {
                                     int idx = chunkBufferMaps[i][current.grid];
@@ -534,7 +530,7 @@ namespace Bliss
                                 }
                                 else
                                     remainings.Add(current);
-                                if (++it >= chunks.Count)
+                                if (++it >= chunkSet.Count)
                                 {
                                     reachedEnd = true;
                                     break;
@@ -561,41 +557,48 @@ namespace Bliss
         {
             if (grassPass != null)
             {
-                //Gizmos.matrix = transform.localToWorldMatrix;
-                Color cubeColor = new Color(0, 1, 0, 0.5f);
                 Color wireColor = new Color(1f, 0f, 0f, 0.5f);
+                Color cubeColor = new Color(0, 1, 0, 0.5f);
+
+                Gizmos.color = wireColor;
+                if (chunkSet != null)
+                {
+                    foreach (var chunk in chunkSet)
+                    {
+                        Gizmos.DrawWireCube(new Vector3(chunk.X + chunk.size * 0.5f, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f) * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f), chunk.size));
+                    }
+                }
+                Gizmos.color = cubeColor;
+                //Gizmos.matrix = transform.localToWorldMatrix;
                 foreach (var chunk in grassPass.chunks)
                 {
-                    Gizmos.color = cubeColor;
                     Gizmos.DrawCube(new Vector3(chunk.X + chunk.size * 0.5f, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f) * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f), chunk.size));
-                    Gizmos.color = wireColor;
-                    Gizmos.DrawWireCube(new Vector3(chunk.X + chunk.size * 0.5f, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f) * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f), chunk.size));
                 }
-            }
-            if (frustumTriangle != null)
-            {
-                Gizmos.color = Color.yellow;
-                Vector3 vert0 = new Vector3(frustumTriangle[0].x, 0, frustumTriangle[0].y);
-                Vector3 vert1 = new Vector3(frustumTriangle[1].x, 0, frustumTriangle[1].y);
-                Vector3 vert2 = new Vector3(frustumTriangle[2].x, 0, frustumTriangle[2].y);
-                Gizmos.DrawSphere(vert0, 0.1f);
-                Gizmos.DrawSphere(vert1, 0.1f);
-                Gizmos.DrawSphere(vert2, 0.1f);
-                Gizmos.DrawLine(vert0, vert1);
-                Gizmos.DrawLine(vert0, vert2);
-                Gizmos.DrawLine(vert1, vert2);
-            }
+                if (frustumTriangle != null)
+                {
+                    Gizmos.color = Color.yellow;
+                    Vector3 vert0 = new Vector3(frustumTriangle[0].x, 0, frustumTriangle[0].y);
+                    Vector3 vert1 = new Vector3(frustumTriangle[1].x, 0, frustumTriangle[1].y);
+                    Vector3 vert2 = new Vector3(frustumTriangle[2].x, 0, frustumTriangle[2].y);
+                    Gizmos.DrawSphere(vert0, 0.1f);
+                    Gizmos.DrawSphere(vert1, 0.1f);
+                    Gizmos.DrawSphere(vert2, 0.1f);
+                    Gizmos.DrawLine(vert0, vert1);
+                    Gizmos.DrawLine(vert0, vert2);
+                    Gizmos.DrawLine(vert1, vert2);
+                }
 
-            Gizmos.color = Color.red;
-            var frustumCorners = new Vector3[4];
-            frustumCorners[0] = cam.ViewportToWorldPoint(new Vector3(0, 0, maxViewDistance));
-            frustumCorners[1] = cam.ViewportToWorldPoint(new Vector3(1, 0, maxViewDistance));
-            frustumCorners[2] = cam.ViewportToWorldPoint(new Vector3(0, 1, maxViewDistance));
-            frustumCorners[3] = cam.ViewportToWorldPoint(new Vector3(1, 1, maxViewDistance));
-            Gizmos.DrawSphere(frustumCorners[0], 0.1f);
-            Gizmos.DrawSphere(frustumCorners[1], 0.1f);
-            Gizmos.DrawSphere(frustumCorners[2], 0.1f);
-            Gizmos.DrawSphere(frustumCorners[3], 0.1f);
+                Gizmos.color = Color.red;
+                var frustumCorners = new Vector3[4];
+                frustumCorners[0] = cam.ViewportToWorldPoint(new Vector3(0, 0, maxViewDistance));
+                frustumCorners[1] = cam.ViewportToWorldPoint(new Vector3(1, 0, maxViewDistance));
+                frustumCorners[2] = cam.ViewportToWorldPoint(new Vector3(0, 1, maxViewDistance));
+                frustumCorners[3] = cam.ViewportToWorldPoint(new Vector3(1, 1, maxViewDistance));
+                Gizmos.DrawSphere(frustumCorners[0], 0.1f);
+                Gizmos.DrawSphere(frustumCorners[1], 0.1f);
+                Gizmos.DrawSphere(frustumCorners[2], 0.1f);
+                Gizmos.DrawSphere(frustumCorners[3], 0.1f);
+            }
 
         }
         bool IsChunkVisible(GrassChunk chunk)
