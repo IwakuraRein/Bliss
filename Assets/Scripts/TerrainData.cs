@@ -28,13 +28,22 @@ namespace Bliss
         public static float hash(float n)
         {
             // This yileds different values than shader
-            return frac(sin(n) * 43758.5453123f);
+            //return frac(sin(n) * 43758.5453123f);
 
             // reference: https://www.shadertoy.com/view/4djSRW
             //n = frac(n * .1031f);
             //n *= n + 33.33f;
             //n *= n + n;
             //return frac(n);
+
+            uint s = asuint(n);
+            s ^= 2747636419u;
+            s *= 2654435769u;
+            s ^= s >> 16;
+            s *= 2654435769u;
+            s ^= s >> 16;
+            s *= 2654435769u;
+            return (float)s / 4294967295f;
         }
         public static float3 noised(float2 x)
         {
