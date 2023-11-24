@@ -85,7 +85,7 @@ namespace Bliss
             public static int Size()
             {
                 return
-                    sizeof(float) * 4 * 4; 
+                    sizeof(float) * 4 * 4;
             }
         };
         public float GrassHeight
@@ -119,7 +119,7 @@ namespace Bliss
 
         public int BufferSize
         {
-            get => meshRenderPropertyBuffer != null? meshRenderPropertyBuffer.count : 0;
+            get => meshRenderPropertyBuffer != null ? meshRenderPropertyBuffer.count : 0;
         }
 
         public GrassPass(Material material, Mesh[] meshes, ComputeShader compute, int[] LODs, GrassPassSettings settings, RenderPassEvent injectionPoint)
@@ -197,52 +197,51 @@ namespace Bliss
 
             if (material == null)
                 return;
-            CommandBuffer cmd = CommandBufferPool.Get();
-            using (new ProfilingScope(cmd, pofilingSampler))
+            var scaleMat = Matrix4x4.Scale(settings.scaleOverride);
+            //var rotMat = Matrix4x4.identity;
+
+            int kernel = compute.FindKernel("CSMain");
+            //compute.SetMatrix("_ScaleMat", scaleMat);
+            //compute.SetMatrix("_RotMat", rotMat);
+
+            compute.SetVector("_Gravity", Physics.gravity);
+            compute.SetFloat("_DeltaMultiplier", settings.deltaMultiplier);
+            compute.SetFloat("_DeltaTime", Time.deltaTime);
+            compute.SetFloat("_Time", Time.time);
+            compute.SetFloat("_WindFieldMovingSpeed", settings.windFieldSpeed);
+            compute.SetFloat("_WindFieldMagnitude", settings.windFieldMagnitude);
+            compute.SetFloat("_GrassStiffness", settings.grassStiffness);
+            compute.SetFloat("_GrassHeight", GrassHeight);
+            compute.SetFloat("_GrassWidth", GrassWidth);
+            material.SetFloat("_GrassHeight", GrassHeight);
+            material.SetFloat("_GrassWidth", GrassWidth);
+            //material.SetVector("_ScaleOverride", settings.scaleOverride);
+
+            int chunkCount = 0;
+            if (chunks != null)
             {
-                var scaleMat = Matrix4x4.Scale(settings.scaleOverride);
-                //var rotMat = Matrix4x4.identity;
-
-                int kernel = compute.FindKernel("CSMain");
-                //compute.SetMatrix("_ScaleMat", scaleMat);
-                //compute.SetMatrix("_RotMat", rotMat);
-
-                compute.SetVector("_Gravity", Physics.gravity);
-                compute.SetFloat("_DeltaMultiplier", settings.deltaMultiplier);
-                compute.SetFloat("_DeltaTime", Time.deltaTime);
-                compute.SetFloat("_Time", Time.time);
-                compute.SetFloat("_WindFieldMovingSpeed", settings.windFieldSpeed);
-                compute.SetFloat("_WindFieldMagnitude", settings.windFieldMagnitude);
-                compute.SetFloat("_GrassStiffness", settings.grassStiffness);
-                compute.SetFloat("_GrassHeight", GrassHeight);
-                compute.SetFloat("_GrassWidth", GrassWidth);
-                material.SetFloat("_GrassHeight", GrassHeight);
-                material.SetFloat("_GrassWidth", GrassWidth);
-                //material.SetVector("_ScaleOverride", settings.scaleOverride);
-
-                int chunkCount = 0;
-                if (chunks != null)
+                foreach (var chunk in chunks)
                 {
-                    foreach (var chunk in chunks)
-                    {
-                        if (++chunkCount > chunkSize) break;
-                        //var chunk = chunks[0];
-                        compute.SetVector("_GridOrigin", chunk.pos2d);
-                        compute.SetFloat("_GridSize", chunk.size / settings.ChunkGrassSize);
-                        compute.SetInt("_ChunkWidth", settings.ChunkGrassSize);
-                        compute.SetInt("_PropertiesStartIdx", chunk.index * settings.GrassNumPerChunk);
-                        // We used to just be able to use `population` here, but it looks like a Unity update imposed a thread limit (65535) on my device.
-                        // This is probably for the best, but we have to do some more calculation.  Divide population by numthreads.x in the compute shader.
-                        compute.Dispatch(kernel, Mathf.CeilToInt(settings.GrassNumPerChunk / 64f), 1, 1);
-                    }
+                    if (++chunkCount > chunkSize) break;
+                    //var chunk = chunks[0];
+                    compute.SetVector("_GridOrigin", chunk.pos2d);
+                    compute.SetFloat("_GridSize", chunk.size / settings.ChunkGrassSize);
+                    compute.SetInt("_ChunkWidth", settings.ChunkGrassSize);
+                    compute.SetInt("_PropertiesStartIdx", chunk.index * settings.GrassNumPerChunk);
+                    // We used to just be able to use `population` here, but it looks like a Unity update imposed a thread limit (65535) on my device.
+                    // This is probably for the best, but we have to do some more calculation.  Divide population by numthreads.x in the compute shader.
+                    compute.Dispatch(kernel, Mathf.CeilToInt(settings.GrassNumPerChunk / 64f), 1, 1);
                 }
-
-                // 0: index count per instance, 1: instance count, 2: start index location, 3: base vertex location, 4: start instance location
-                // "start instance location" may act differently on DX11 devices. reference: https://forum.unity.com/threads/graphics-drawmeshinstancedindirect-and-argsoffset.765959/
-                // doesn't work on my machine
-                chunkCount = 0;
-                for (int i = 0; i < LODCount; ++i)
+            }
+            chunkCount = 0;
+            for (int i = 0; i < LODCount; ++i)
+            {
+                CommandBuffer cmd = CommandBufferPool.Get();
+                using (new ProfilingScope(cmd, pofilingSampler))
                 {
+                    // 0: index count per instance, 1: instance count, 2: start index location, 3: base vertex location, 4: start instance location
+                    // "start instance location" may act differently on DX11 devices. reference: https://forum.unity.com/threads/graphics-drawmeshinstancedindirect-and-argsoffset.765959/
+                    // doesn't work on my machine
                     uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
                     args[0] = (uint)meshes[i].GetIndexCount(0);
                     args[1] = (uint)(settings.GrassNumPerChunk * LODs[i]);
@@ -251,12 +250,12 @@ namespace Bliss
                     //args[4] = (uint)(chunkCount * settings.GrassNumPerChunk); // doesn't work
                     cmd.SetGlobalInt("_GrassRenderPropertyStartIndex", chunkCount * settings.GrassNumPerChunk);
                     drawIndirectArgsBuffers[i].SetData(args);
-                    cmd.DrawMeshInstancedIndirect(meshes[i], 0, material, 0, drawIndirectArgsBuffers[i]); 
+                    cmd.DrawMeshInstancedIndirect(meshes[i], 0, material, 0, drawIndirectArgsBuffers[i]);
                     chunkCount += LODs[i];
                 }
+                context.ExecuteCommandBuffer(cmd);
+                cmd.Clear();
             }
-            context.ExecuteCommandBuffer(cmd);
-            cmd.Clear();
         }
         public void Dispose()
         {
@@ -383,12 +382,12 @@ namespace Bliss
             {
                 //if (!addedChunks.Contains(coord))
                 //{
-                    var chunk = new GrassChunk(coord, cam, settings.chunkSize, -1);
-                    if (IsChunkVisible(chunk))
-                    {
-                        chunks.Add(chunk);
-                        //addedChunks.Add(coord);
-                    }
+                var chunk = new GrassChunk(coord, cam, settings.chunkSize, -1);
+                if (IsChunkVisible(chunk))
+                {
+                    chunks.Add(chunk);
+                    //addedChunks.Add(coord);
+                }
                 //}
             }
 
@@ -467,11 +466,11 @@ namespace Bliss
             #region write chunks. if the same chunk exists, map it to the same buffer position.
             Profiler.BeginSample("Write Chunks");
             bool firstRun = grassPass.chunks == null;
-            if (grassPass.chunkSize > chunks.Count)
-            {
-                Debug.LogError($"The chunks generated are less than compute buffer's size.");
-                return;
-            }
+            //if (grassPass.chunkSize > chunks.Count) // only a few visible chunks
+            //{
+            //    Debug.LogError($"The chunks generated are less than compute buffer's size.");
+            //    return;
+            //}
             if (firstRun)
             {
                 chunkBufferMaps = new Dictionary<Vector2Int, int>[LOD.Length];
@@ -485,12 +484,12 @@ namespace Bliss
                     while (true)
                     {
                         if (++counter > LOD[i]) break;
-                        it.MoveNext();
                         //if (idx >= chunkNum) break;
                         grassPass.chunks[idx] = it.Current;
                         grassPass.chunks[idx].index = idx;
                         chunkBufferMaps[i].Add(it.Current.grid, idx);
                         idx++;
+                        if (!it.MoveNext()) return;
                     }
                 }
             }
@@ -498,37 +497,46 @@ namespace Bliss
             {
                 var it = chunks.GetEnumerator();
                 int startIdx = 0;
+                bool reachedEnd = false;
                 for (int i = 0; i < LOD.Length; ++i)
                 {
                     var newBufferMap = new Dictionary<Vector2Int, int>();
-                    var availableIndices = new HashSet<int>(Enumerable.Range(startIdx, LOD[i]));
-                    startIdx += LOD[i];
-                    var remainings = new HashSet<GrassChunk>();
-                    int counter = 0;
-                    while (true)
-                    {
-                        if (++counter > LOD[i]) break;
-                        it.MoveNext();
-                        if (chunkBufferMaps[i].ContainsKey(it.Current.grid))
-                        {
-                            int idx = chunkBufferMaps[i][it.Current.grid];
-                            grassPass.chunks[idx] = it.Current;
-                            grassPass.chunks[idx].index = idx;
-                            availableIndices.Remove(idx);
 
-                            newBufferMap.Add(it.Current.grid, idx);
-                        }
-                        else
-                            remainings.Add(it.Current);
-                    }
-                    foreach (var chunk in remainings)
+                    if (!reachedEnd)
                     {
-                        int idx = availableIndices.First();
-                        availableIndices.Remove(idx);
-                        grassPass.chunks[idx] = chunk;
-                        grassPass.chunks[idx].index = idx;
-                        newBufferMap.Add(chunk.grid, idx);
-                        grassPass.InitializeChunk(idx);
+                        var availableIndices = new HashSet<int>(Enumerable.Range(startIdx, LOD[i]));
+                        startIdx += LOD[i];
+                        var remainings = new HashSet<GrassChunk>();
+                        int counter = 0;
+                        while (true)
+                        {
+                            if (++counter > LOD[i]) break;
+                            if (chunkBufferMaps[i].ContainsKey(it.Current.grid))
+                            {
+                                int idx = chunkBufferMaps[i][it.Current.grid];
+                                grassPass.chunks[idx] = it.Current;
+                                grassPass.chunks[idx].index = idx;
+                                availableIndices.Remove(idx);
+
+                                newBufferMap.Add(it.Current.grid, idx);
+                            }
+                            else
+                                remainings.Add(it.Current);
+                            if (!it.MoveNext())
+                            {
+                                reachedEnd = true;
+                                break;
+                            }
+                        }
+                        foreach (var chunk in remainings)
+                        {
+                            int idx = availableIndices.First();
+                            availableIndices.Remove(idx);
+                            grassPass.chunks[idx] = chunk;
+                            grassPass.chunks[idx].index = idx;
+                            newBufferMap.Add(chunk.grid, idx);
+                            grassPass.InitializeChunk(idx);
+                        }
                     }
                     chunkBufferMaps[i] = newBufferMap;
                 }
@@ -546,9 +554,9 @@ namespace Bliss
                 foreach (var chunk in grassPass.chunks)
                 {
                     Gizmos.color = cubeColor;
-                    Gizmos.DrawCube(new Vector3(chunk.X + chunk.size * 0.5f, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f) * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, (TerrainData.MaxHeight  + grassPass.GrassHeight * 2f), chunk.size));
+                    Gizmos.DrawCube(new Vector3(chunk.X + chunk.size * 0.5f, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f) * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f), chunk.size));
                     Gizmos.color = wireColor;
-                    Gizmos.DrawWireCube(new Vector3(chunk.X + chunk.size * 0.5f, (TerrainData.MaxHeight  + grassPass.GrassHeight * 2f) * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, (TerrainData.MaxHeight  + grassPass.GrassHeight * 2f), chunk.size));
+                    Gizmos.DrawWireCube(new Vector3(chunk.X + chunk.size * 0.5f, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f) * 0.5f, chunk.Y + chunk.size * 0.5f), new Vector3(chunk.size, (TerrainData.MaxHeight + grassPass.GrassHeight * 2f), chunk.size));
                 }
             }
             if (frustumTriangle != null)
@@ -567,7 +575,7 @@ namespace Bliss
         }
         bool IsChunkVisible(GrassChunk chunk)
         {
-            var bounds = chunk.GetBounds((TerrainData.MaxHeight + grassPass.GrassHeight * 2f) );
+            var bounds = chunk.GetBounds((TerrainData.MaxHeight + grassPass.GrassHeight * 2f));
             return GeometryUtility.TestPlanesAABB(frustumPlanes, bounds);
         }
         bool IsPointVisible(Vector3 pos)
