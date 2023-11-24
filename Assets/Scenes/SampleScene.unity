@@ -238,6 +238,7 @@ GameObject:
   - component: {fileID: 330585544}
   - component: {fileID: 330585547}
   - component: {fileID: 330585548}
+  - component: {fileID: 330585549}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -312,13 +313,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.13052616, y: 0, z: 0, w: 0.9914449}
+  m_LocalRotation: {x: 0.059306376, y: 0, z: 0, w: 0.9982399}
   m_LocalPosition: {x: 0, y: 1.18, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 15, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 6.8, y: 0, z: 0}
 --- !u!114 &330585547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -375,9 +376,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 311faaed5d7e9d244859d7715359057d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 2
   heightAboveGround: 0.3
-  unlockHeight: 0
+--- !u!114 &330585549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 330585543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 618b0e3f6c65dd247a4a016150006c57, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_LookSpeedController: 120
+  m_LookSpeedMouse: 2
+  m_MoveSpeed: 1
+  m_MoveSpeedIncrement: 2.5
+  m_Turbo: 10
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -624,7 +640,7 @@ MonoBehaviour:
   enableInScene: 1
   injectionPoint: 450
   cam: {fileID: 330585545}
-  maxViewDistance: 50
+  maxViewDistance: 25
   compute: {fileID: 7200000, guid: 47b8eef63a3f0a2428171aac33133dae, type: 3}
   material: {fileID: 2100000, guid: 5686b4d7df4385948953803c6e19253e, type: 2}
   LOD: 0a0000001e00000032000000

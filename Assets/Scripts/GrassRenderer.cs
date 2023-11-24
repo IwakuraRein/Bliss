@@ -51,7 +51,8 @@ namespace Bliss
             //    if (other.cameraLocalCoord.z >= 0) return 1;
             //    return 0;
             //}
-            if (this.cameraLocalCoord.z < other.cameraLocalCoord.z) return -1;
+            //if (Vector3.Magnitude(cameraLocalCoord) < Vector3.Magnitude(other.cameraLocalCoord)) return -1;
+            if (MathF.Abs(cameraLocalCoord.z) < MathF.Abs(other.cameraLocalCoord.z)) return -1;
             return 1;
         }
     }
@@ -364,14 +365,14 @@ namespace Bliss
             }
 
             frustumTriangle[0] = new Vector2(cam.transform.position.x, cam.transform.position.z);
-            var foo = transform.TransformPoint(minX, 0f, maxZ);
+            var foo = transform.TransformPoint(minX, 0f, minZ);
             frustumTriangle[1] = new Vector2(foo.x, foo.z);
-            foo = transform.TransformPoint(maxX, 0f, maxZ);
+            foo = transform.TransformPoint(maxX, 0f, minZ);
             frustumTriangle[2] = new Vector2(foo.x, foo.z);
 
             frustumTriangleLocal[0] = transform.InverseTransformPoint(cam.transform.position);
-            frustumTriangleLocal[1] = new Vector2(minX, maxZ);
-            frustumTriangleLocal[2] = new Vector2(maxX, maxZ);
+            frustumTriangleLocal[1] = new Vector2(minX, minZ);
+            frustumTriangleLocal[2] = new Vector2(maxX, minZ);
             #endregion
 
             #region raterize the triangle
@@ -382,12 +383,12 @@ namespace Bliss
             {
                 //if (!addedChunks.Contains(coord))
                 //{
-                var chunk = new GrassChunk(coord, cam, settings.chunkSize, -1);
-                if (IsChunkVisible(chunk))
-                {
-                    chunks.Add(chunk);
-                    //addedChunks.Add(coord);
-                }
+                    var chunk = new GrassChunk(coord, cam, settings.chunkSize, -1);
+                    if (IsChunkVisible(chunk))
+                    {
+                        chunks.Add(chunk);
+                        //addedChunks.Add(coord);
+                    }
                 //}
             }
 
@@ -471,74 +472,86 @@ namespace Bliss
             //    Debug.LogError($"The chunks generated are less than compute buffer's size.");
             //    return;
             //}
-            if (firstRun)
+            if (chunks.Count > 0)
             {
-                chunkBufferMaps = new Dictionary<Vector2Int, int>[LOD.Length];
-                for (int i = 0; i < LOD.Length; ++i) chunkBufferMaps[i] = new Dictionary<Vector2Int, int>();
-                grassPass.chunks = new GrassChunk[grassPass.chunkSize];
-                int idx = 0;
-                var it = chunks.GetEnumerator();
-                for (int i = 0; i < LOD.Length; ++i)
+                if (firstRun)
                 {
-                    int counter = 0;
-                    while (true)
+                    chunkBufferMaps = new Dictionary<Vector2Int, int>[LOD.Length];
+                    for (int i = 0; i < LOD.Length; ++i) chunkBufferMaps[i] = new Dictionary<Vector2Int, int>();
+                    grassPass.chunks = new GrassChunk[grassPass.chunkSize];
+                    int idx = 0;
+                    int it = 0;
+                    bool reachedEnd = false;
+                    for (int i = 0; i < LOD.Length; ++i)
                     {
-                        if (++counter > LOD[i]) break;
-                        //if (idx >= chunkNum) break;
-                        grassPass.chunks[idx] = it.Current;
-                        grassPass.chunks[idx].index = idx;
-                        chunkBufferMaps[i].Add(it.Current.grid, idx);
-                        idx++;
-                        if (!it.MoveNext()) return;
+                        if (!reachedEnd)
+                        {
+                            int counter = 0;
+                            while (true)
+                            {
+                                if (++counter > LOD[i]) break;
+                                var current = chunks.ElementAt(it);
+                                grassPass.chunks[idx] = current;
+                                grassPass.chunks[idx].index = idx;
+                                chunkBufferMaps[i].Add(current.grid, idx);
+                                idx++;
+                                if (++it >= chunks.Count)
+                                {
+                                    reachedEnd = true;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
-            }
-            else
-            {
-                var it = chunks.GetEnumerator();
-                int startIdx = 0;
-                bool reachedEnd = false;
-                for (int i = 0; i < LOD.Length; ++i)
+                else
                 {
-                    var newBufferMap = new Dictionary<Vector2Int, int>();
-
-                    if (!reachedEnd)
+                    int it = 0;
+                    int startIdx = 0;
+                    bool reachedEnd = false;
+                    for (int i = 0; i < LOD.Length; ++i)
                     {
-                        var availableIndices = new HashSet<int>(Enumerable.Range(startIdx, LOD[i]));
-                        startIdx += LOD[i];
-                        var remainings = new HashSet<GrassChunk>();
-                        int counter = 0;
-                        while (true)
-                        {
-                            if (++counter > LOD[i]) break;
-                            if (chunkBufferMaps[i].ContainsKey(it.Current.grid))
-                            {
-                                int idx = chunkBufferMaps[i][it.Current.grid];
-                                grassPass.chunks[idx] = it.Current;
-                                grassPass.chunks[idx].index = idx;
-                                availableIndices.Remove(idx);
+                        var newBufferMap = new Dictionary<Vector2Int, int>();
 
-                                newBufferMap.Add(it.Current.grid, idx);
-                            }
-                            else
-                                remainings.Add(it.Current);
-                            if (!it.MoveNext())
-                            {
-                                reachedEnd = true;
-                                break;
-                            }
-                        }
-                        foreach (var chunk in remainings)
+                        if (!reachedEnd)
                         {
-                            int idx = availableIndices.First();
-                            availableIndices.Remove(idx);
-                            grassPass.chunks[idx] = chunk;
-                            grassPass.chunks[idx].index = idx;
-                            newBufferMap.Add(chunk.grid, idx);
-                            grassPass.InitializeChunk(idx);
+                            var availableIndices = new HashSet<int>(Enumerable.Range(startIdx, LOD[i]));
+                            startIdx += LOD[i];
+                            var remainings = new HashSet<GrassChunk>();
+                            int counter = 0;
+                            while (true)
+                            {
+                                if (++counter > LOD[i]) break;
+                                var current = chunks.ElementAt(it);
+                                if (chunkBufferMaps[i].ContainsKey(current.grid))
+                                {
+                                    int idx = chunkBufferMaps[i][current.grid];
+                                    grassPass.chunks[idx] = current;
+                                    grassPass.chunks[idx].index = idx;
+                                    availableIndices.Remove(idx);
+
+                                    newBufferMap.Add(current.grid, idx);
+                                }
+                                else
+                                    remainings.Add(current);
+                                if (++it >= chunks.Count)
+                                {
+                                    reachedEnd = true;
+                                    break;
+                                }
+                            }
+                            foreach (var chunk in remainings)
+                            {
+                                int idx = availableIndices.First();
+                                availableIndices.Remove(idx);
+                                grassPass.chunks[idx] = chunk;
+                                grassPass.chunks[idx].index = idx;
+                                newBufferMap.Add(chunk.grid, idx);
+                                grassPass.InitializeChunk(idx);
+                            }
                         }
+                        chunkBufferMaps[i] = newBufferMap;
                     }
-                    chunkBufferMaps[i] = newBufferMap;
                 }
             }
             Profiler.EndSample();
@@ -572,6 +585,18 @@ namespace Bliss
                 Gizmos.DrawLine(vert0, vert2);
                 Gizmos.DrawLine(vert1, vert2);
             }
+
+            Gizmos.color = Color.red;
+            var frustumCorners = new Vector3[4];
+            frustumCorners[0] = cam.ViewportToWorldPoint(new Vector3(0, 0, maxViewDistance));
+            frustumCorners[1] = cam.ViewportToWorldPoint(new Vector3(1, 0, maxViewDistance));
+            frustumCorners[2] = cam.ViewportToWorldPoint(new Vector3(0, 1, maxViewDistance));
+            frustumCorners[3] = cam.ViewportToWorldPoint(new Vector3(1, 1, maxViewDistance));
+            Gizmos.DrawSphere(frustumCorners[0], 0.1f);
+            Gizmos.DrawSphere(frustumCorners[1], 0.1f);
+            Gizmos.DrawSphere(frustumCorners[2], 0.1f);
+            Gizmos.DrawSphere(frustumCorners[3], 0.1f);
+
         }
         bool IsChunkVisible(GrassChunk chunk)
         {
