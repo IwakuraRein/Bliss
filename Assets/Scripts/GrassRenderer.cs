@@ -164,9 +164,9 @@ namespace Bliss
         }
         public void InitializeChunk(int chunkIndex)
         {
-            if (chunkSize == 0)
+            if (meshRenderPropertyBuffer.count == 0)
             {
-                Debug.LogError($"No chunk or compute buffer is allocated"); return;
+                Debug.LogError($"No compute buffer is allocated"); return;
             }
             if (chunkIndex >= chunkSize)
             {
