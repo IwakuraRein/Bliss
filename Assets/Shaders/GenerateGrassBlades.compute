@@ -37,9 +37,6 @@ float4x4 RotateY(float rad)
 }
 float4x4 Translation(float3 translation)
 {
-    float c = cos(translation);
-    float s = sin(translation);
-
     return float4x4 (
         1, 0, 0, translation.x,
         0, 1, 0, translation.y,
@@ -104,7 +101,7 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
 
 
     // write the result
-    prop.v0_world = float4(pos2d.x, GetHeight(pos2d), pos2d.y, 1);
+    prop.v0_world = float4(pos2d.x, GetHeight(pos2d)+0.05, pos2d.y, 1);
     prop.v1andv2_local.x = v1new.y / _GrassHeight;
     prop.v1andv2_local.z = v2new.y / _GrassHeight;
     prop.v1andv2_local.yw = v2new.xz / _GrassWidth;

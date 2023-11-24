@@ -22,7 +22,7 @@ namespace Bliss
         {
             get
             {
-                return HEIGHT_MAGNITUDE * 0.5f + 0.5f;
+                return HEIGHT_MAGNITUDE * 0.5f;
             }
         }
         public static float hash(float n)
@@ -82,8 +82,7 @@ namespace Bliss
                 magnitude *= 0.5f;
             }
 
-            // iq's original had 0.5 here, but that doesn't fit the range
-            return (height * 0.5f + 0.5f);
+            return height * 0.5f;
         }
         public float3 GetNormal(float2 p)
         {

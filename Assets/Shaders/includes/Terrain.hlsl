@@ -70,8 +70,7 @@ float GetHeight(float2 p)
 		magnitude *= 0.5;
 	}
 
-	// iq's original had 0.5 here, but that doesn't fit the range
-	return (height * 0.5 + 0.5);
+	return (height * 0.5);
 }
 
 float3 GetNormal(float2 p)

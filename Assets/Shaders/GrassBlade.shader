@@ -75,7 +75,7 @@ Shader "Bliss/GrassBlade"
                 float oneMinusT = 1 - v.uv.y;
                 o.world_pos = float4(oneMinusT * oneMinusT * v0 + 2 * v.uv.y * oneMinusT * v1 + v.uv.y * v.uv.y * v2, 1);
 
-                //o.world_pos = float4(v0 + float3(0, 1, 0) * _GrassHeight * v.uv.y + prop.right * (v.uv.x - 0.5) * _GrassWidth, 1);
+                //o.world_pos = float4(prop.v0_world + float3(0, 1, 0) * _GrassHeight * v.uv.y + prop.right * (v.uv.x - 0.5) * _GrassWidth, 1);
                 o.vertex = mul(UNITY_MATRIX_VP, o.world_pos);
                 o.normal.xyz = normalize(cross(float3(0, 1, 0), prop.right));
                 o.uv = v.uv;

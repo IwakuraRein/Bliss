@@ -148,19 +148,6 @@ namespace Bliss
             // Argument buffer used by DrawMeshInstancedIndirect.
             // It has 5 uint values
 
-            if (initialProperties == null || initialProperties.Length != settings.GrassNumPerChunk)
-            {
-                initialProperties = new GrassRenderProperty[settings.GrassNumPerChunk];
-                for (int i = 0; i < settings.GrassNumPerChunk; i++)
-                {
-                    initialProperties[i].v1andv2.x = 1f;
-                    initialProperties[i].v1andv2.y = 0f;
-                    initialProperties[i].v1andv2.z = 1f;
-                    initialProperties[i].v1andv2.w = 0f;
-                    initialProperties[i].color = Vector4.one;
-                }
-            }
-
             drawIndirectArgsBuffers = new ComputeBuffer[LODCount];
             for (int i = 0; i < LODCount; ++i)
             {
@@ -170,7 +157,7 @@ namespace Bliss
             meshRenderPropertyBuffer = new ComputeBuffer(chunkSize * settings.GrassNumPerChunk, GrassRenderProperty.Size());
             for (int i = 0; i < chunkSize; ++i)
             {
-                meshRenderPropertyBuffer.SetData(initialProperties, 0, i * settings.GrassNumPerChunk, settings.GrassNumPerChunk);
+                InitializeChunk(i);
             }
             compute.SetBuffer(kernel, "_Properties", meshRenderPropertyBuffer);
             material.SetBuffer("_Properties", meshRenderPropertyBuffer);
