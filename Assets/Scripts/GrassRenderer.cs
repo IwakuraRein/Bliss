@@ -68,7 +68,11 @@ namespace Bliss
         public float windFieldSpeed;
         public float windFieldMagnitude;
         public float grassStiffness;
-        public float deltaMultiplier;
+        public float timeScale;
+        [Range(0.01f, 0.99f)]
+        public float mouseEventDecay;
+        public float mouseEventRadius;
+        public float mouseEventWindForce;
         public int GrassNumPerChunk
         {
             get { return ChunkGrassSize * ChunkGrassSize; }
@@ -83,10 +87,11 @@ namespace Bliss
             public Vector4 v1andv2;
             public Vector4 right;
             public Vector4 color;
+            public Vector4 innerForce;
             public static int Size()
             {
                 return
-                    sizeof(float) * 4 * 4;
+                    sizeof(float) * 4 * 5;
             }
         };
         public float GrassHeight
@@ -120,6 +125,7 @@ namespace Bliss
 
         internal Vector3 mouseClickPos;
         internal int mouseClicked;
+        internal Color mouseEventColor;
 
         public int BufferSize
         {
@@ -186,6 +192,8 @@ namespace Bliss
                     initialProperties[i].v1andv2.z = 1f;
                     initialProperties[i].v1andv2.w = 0f;
                     initialProperties[i].color = Vector4.one;
+                    initialProperties[i].color.w = 0f; // blending
+                    initialProperties[i].innerForce = Vector4.zero;
                 }
             }
             meshRenderPropertyBuffer.SetData(initialProperties, 0, chunkIndex * settings.GrassNumPerChunk, settings.GrassNumPerChunk);
@@ -209,7 +217,13 @@ namespace Bliss
             //compute.SetMatrix("_RotMat", rotMat);
 
             compute.SetVector("_Gravity", Physics.gravity);
-            compute.SetFloat("_DeltaMultiplier", settings.deltaMultiplier);
+            compute.SetVector("_MouseClickPos", mouseClickPos);
+            compute.SetInt("_MouseClicked", mouseClicked);
+            compute.SetFloat("_MouseEventDecay", settings.mouseEventDecay);
+            compute.SetFloat("_MouseEventRadius", settings.mouseEventRadius);
+            compute.SetFloat("_MouseEventWindForce", settings.mouseEventWindForce);
+            compute.SetVector("_MouseEventColor", mouseEventColor);
+            compute.SetFloat("_TimeScale", settings.timeScale);
             compute.SetFloat("_DeltaTime", Time.deltaTime);
             compute.SetFloat("_Time", Time.time);
             compute.SetFloat("_WindFieldMovingSpeed", settings.windFieldSpeed);
@@ -298,6 +312,8 @@ namespace Bliss
         [SerializeField]
         Mesh[] meshes = new Mesh[3];
         [SerializeField]
+        Color[] mouseEventColors = new Color[2] { Color.cyan, Color.blue };
+        [SerializeField]
         GrassPassSettings settings;
 
         Plane[] frustumPlanes;
@@ -309,6 +325,8 @@ namespace Bliss
         SortedSet<GrassChunk> chunkSet;
 
         Nullable<Vector3> RayCastPos;
+
+        Color mouseEventColor = Color.white;
         public int DrawNum
         {
             get
@@ -344,11 +362,13 @@ namespace Bliss
             Profiler.BeginSample("Mouse Ray March");
             RayCast();
             Profiler.EndSample();
+
+            if (Input.GetMouseButtonDown(0)) mouseEventColor = mouseEventColors[UnityEngine.Random.Range(0, mouseEventColors.Length)];
         }
         void RayCast()
         {
             RayCastPos = null;
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButton(0))
             {
                 Vector3 mousePos = Input.mousePosition;
                 mousePos.z = Camera.main.nearClipPlane;
@@ -359,7 +379,6 @@ namespace Bliss
                 if (TerrainData.RayMarch(ref pos, dir, terrainRenderer.material.GetFloat("_RayMarchStep"), terrainRenderer.material.GetFloat("_RayMarchMaxDistance")))
                 {
                     RayCastPos = (Vector3)pos - dir * 0.1f;
-                    Debug.Log($"Ray hits at {RayCastPos}");
                 }
             }
         }
@@ -368,6 +387,7 @@ namespace Bliss
             grassPass.enableInSceneViewPort = enableInScene;
             grassPass.mouseClicked = RayCastPos.HasValue ? 1 : 0;
             grassPass.mouseClickPos = RayCastPos.HasValue ? RayCastPos.Value : Vector3.zero;
+            grassPass.mouseEventColor = mouseEventColor;
             grassPass.settings = settings;
             cam.GetUniversalAdditionalCameraData()
                 .scriptableRenderer.EnqueuePass(grassPass);

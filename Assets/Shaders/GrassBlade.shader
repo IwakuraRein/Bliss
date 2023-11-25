@@ -97,10 +97,10 @@ Shader "Bliss/GrassBlade"
                 float top = max(0, min(1, 1 - i.uv.y));
                 float edge = max(0, min(abs(0.5 - i.uv.x) * 2, 1));
                 float3 color = lerp(_GrassTopColor.xyz, lerp(_GrassEdgeColor.xyz, _GrassCenterColor.xyz, edge), top);
+                color = lerp(color, i.color.xyz, i.color.w);
                 float3 shadowCol = _GrassShadowColor.xyz * color;
                 color = lerp(color, shadowCol, 1.0 - intensity);
 
-                color *= i.color;
                 float T = length(_WorldSpaceCameraPos - i.world_pos.xyz);
                 ApplyFog(color, T);
 

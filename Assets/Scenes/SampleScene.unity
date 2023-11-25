@@ -649,6 +649,12 @@ MonoBehaviour:
   - {fileID: -2961339271964454098, guid: 342464d477a8d47449956f8abf006c23, type: 3}
   - {fileID: 1177448129903720284, guid: eff4332901b263d42958f8c20b2eeda6, type: 3}
   - {fileID: 8774556105089513024, guid: 4dda9d1a8ce4beb4d97d6cee23ae3fce, type: 3}
+  mouseEventColors:
+  - {r: 1, g: 0, b: 0.85642624, a: 1}
+  - {r: 1, g: 0.4496705, b: 0, a: 1}
+  - {r: 0, g: 1, b: 0.90439177, a: 1}
+  - {r: 0.13777146, g: 0.24453658, b: 0.6792453, a: 1}
+  - {r: 0.22607541, g: 0.3962264, b: 0.024296913, a: 1}
   settings:
     chunkSize: 2
     ChunkGrassSize: 250
@@ -656,7 +662,10 @@ MonoBehaviour:
     windFieldSpeed: 0.02
     windFieldMagnitude: 10
     grassStiffness: 800
-    deltaMultiplier: 0.005
+    timeScale: 0.005
+    mouseEventDecay: 0.9
+    mouseEventRadius: 0.5
+    mouseEventWindForce: 500
 --- !u!4 &1007344548
 Transform:
   m_ObjectHideFlags: 0

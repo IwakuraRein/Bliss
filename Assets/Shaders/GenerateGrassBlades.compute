@@ -12,7 +12,7 @@ float _GridSize;
 int _ChunkWidth;
 int _PropertiesStartIdx;
 
-float _DeltaMultiplier;
+float _TimeScale;
 float _DeltaTime;
 float _Time;
 float _WindFieldMovingSpeed;
@@ -20,6 +20,12 @@ float _WindFieldMagnitude;
 float _GrassStiffness;
 
 float3 _Gravity;
+float3 _MouseClickPos;
+int _MouseClicked;
+float _MouseEventDecay;
+float _MouseEventRadius;
+float _MouseEventWindForce;
+float4 _MouseEventColor;
 //float3 _ColliderPos;
 //float3 _ColliderRadius;
 
@@ -80,12 +86,37 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     float4 right = mul(rotMat, float4(1, 0, 0, 0));
     right.xyz = normalize(right.xyz);
 
+    // handle mouse event
+    if (_MouseClicked != 0)
+    {
+        float3 dir = prop.v0_world - _MouseClickPos;
+        float dist = length(prop.v0_world - _MouseClickPos);
+        dir = normalize(dir);
+        float ratio = saturate(1.0 - dist / _MouseEventRadius);
+        prop.innerForce.xyz = _MouseEventWindForce * dir * ratio * ratio;
+
+        if (ratio > 0.001)
+        {
+            float colorMix = ratio / (ratio + prop.color.w);
+            prop.color.xyz = lerp(prop.color.xyz, _MouseEventColor, colorMix);
+            //prop.color.w = max(prop.color.w, ratio);
+            prop.color.w = ratio;
+        }
+    }
+    //else
+    //{
+    //    float decay = pow(_MouseEventDecay, _DeltaTime / _TimeScale);
+    //    prop.innerForce *= decay;
+    //    prop.color.w *= decay;
+    //}
+
     // update v2 and v1
     float3 v2_local_orig = float3(0, _GrassHeight, 0);
     float3 force = (v2_local_orig - v2_local) * _GrassStiffness; // recovery;
     force += WindField(pos2d); // wind
     force += _Gravity; // gravity
-    force *= _DeltaTime * _DeltaMultiplier;
+    force += prop.innerForce;
+    force *= _DeltaTime * _TimeScale;
     v2_local += force ;
     if (v2_local.y < 0) v2_local -= force; // make sure grass is above ground
 
@@ -101,6 +132,9 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
 
 
     // write the result
+        float decay = pow(_MouseEventDecay, _DeltaTime / _TimeScale);
+        prop.innerForce *= decay;
+        prop.color.w *= decay;
     prop.v0_world = float4(pos2d.x, GetHeight(pos2d)+0.05, pos2d.y, 1);
     prop.v1andv2_local.x = v1new.y / _GrassHeight;
     prop.v1andv2_local.z = v2new.y / _GrassHeight;
