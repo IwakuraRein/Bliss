@@ -77,7 +77,7 @@ float4 _fbmd_8(float3 x)
 
 float4 _cloudsFbm(float3 pos)
 {
-    return _fbmd_8(pos * 0.001 + float3(2.0, 1.1, 1.0) + 0.02 * float3(_Time.y, 0.5 * _Time.y, -0.15 * _Time.y));
+    return _fbmd_8(pos * 0.0015 + float3(2.0, 1.1, 1.0) + 0.02 * float3(_Time.y, 0.5 * _Time.y, -0.15 * _Time.y));
 }
 
 float4 cloudsMap(float3 pos, out float nnd)
@@ -96,6 +96,14 @@ float4 cloudsMap(float3 pos, out float nnd)
     //gra += 0.1*n.yzw *  (0.7+0.3*gra.y);
 
     return float4(d, gra);
+}
+
+float CloudsShadow(float3 ro, float3 rd)
+{
+    float t = (900.0 - ro.y) / rd.y;
+    if (t < 0.0) return 1.0;
+    float3 pos = ro + rd * t;
+    return _cloudsFbm(pos).x;
 }
 
 float4 RayMarchClouds(float3 color, float3 kSunDir, float3 ro, float3 rd, float step, float tmin, float tmax, inout float resT)
@@ -137,7 +145,7 @@ float4 RayMarchClouds(float3 color, float3 kSunDir, float3 ro, float3 rd, float 
             lin += float3(1.00, 0.95, 0.85) * 3.0 * dif * occ + 0.1;
 
             // color
-            float3 col = float3(0.8, 0.8, 0.8) * 0.45;
+            float3 col = float3(0.6,0.6,0.6);
 
             col *= lin;
 
@@ -163,7 +171,6 @@ float4 RayMarchClouds(float3 color, float3 kSunDir, float3 ro, float3 rd, float 
     //resT = min(resT, (150.0-ro.y)/rd.y );
     if (lastT > 0.0) resT = min(resT, lastT);
     //if( lastT>0.0 ) resT = mix( resT, lastT, sum.w );
-
 
     sum.xyz += max(0.0, 1.0 - 0.0125 * thickness) * color * 0.3 * pow(clamp(dot(kSunDir, rd), 0.0, 1.0), 32.0);
 

@@ -56,9 +56,10 @@ Shader "Bliss/RayMarchCloud"
 
             void fog(inout float4 col, float t)
             {
-                float3 ext = exp2(-t * 0.00025 * float3(1, 1.5, 4));
+                float ext = saturate(exp2((1800-t) * 0.0005));
                 //col.xyz = col.xyz * ext + (1.0 - ext) * float3(0.8431373, 0.8784314, 0.8745099); // 0.55
-                col.w *= ext;
+                col.a *= ext;
+                col.a = saturate(col.a);
             }
 
             half4 frag(v2f i) : SV_Target

@@ -26,8 +26,6 @@ float _MouseEventDecay;
 float _MouseEventRadius;
 float _MouseEventWindForce;
 float4 _MouseEventColor;
-//float3 _ColliderPos;
-//float3 _ColliderRadius;
 
 float4x4 RotateY(float rad)
 {

@@ -30,6 +30,7 @@ Shader "Bliss/GrassBlade"
 
             #include "includes/GrassRenderProperty.hlsl"
             #include "includes/LightingHelp.hlsl"
+            #include "includes/Cloud.hlsl"
 
             #pragma vertex vert
             #pragma fragment frag
@@ -92,6 +93,8 @@ Shader "Bliss/GrassBlade"
                 GetMainLight_float(i.world_pos.xyz, light, lightDir, distanceAtten, shadowAtten);
 
                 float intensity = saturate(abs(dot(n, lightDir)) * /*distanceAtten * */shadowAtten);
+
+                intensity *= smoothstep(-1, 0.6, CloudsShadow(epos, lightDir));
 
                 //float3 color = _HighlightColor;
                 float top = max(0, min(1, 1 - i.uv.y));

@@ -386,10 +386,12 @@ namespace Bliss
         void OnBeginCamera(ScriptableRenderContext context, Camera cam)
         {
             grassPass.enableInSceneViewPort = enableInScene;
+            //Shader.SetGlobalInt("_MouseClicked", RayCastPos.HasValue ? 1 : 0);
+            //Shader.SetGlobalVector("_MouseClickPos", RayCastPos.HasValue ? RayCastPos.Value : Vector3.zero);
+            grassPass.enableInSceneViewPort = enableInScene;
             grassPass.mouseClicked = RayCastPos.HasValue ? 1 : 0;
             grassPass.mouseClickPos = RayCastPos.HasValue ? RayCastPos.Value : Vector3.zero;
             grassPass.mouseEventColor = mouseEventColor;
-            grassPass.settings = settings;
             cam.GetUniversalAdditionalCameraData()
                 .scriptableRenderer.EnqueuePass(grassPass);
         }

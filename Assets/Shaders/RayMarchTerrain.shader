@@ -85,18 +85,20 @@ Shader "Bliss/RayMarchTerrain"
                     float distanceAtten, shadowAtten;
                     GetMainLight_float(pos, light, lightDir, distanceAtten, shadowAtten);
 
-                    float rayMarchShadowAtten = 1;
 #if _RAY_MARCH_SHADOW
-                    float3 pos2 = pos; float foo;
-                    pos2.y += 0.01;
-                    if (RayMarchTerrain(pos2, lightDir, _RayMarchStep, 100))
-                    {
-                        rayMarchShadowAtten = 0;
-                    }
-                    rayMarchShadowAtten *= RayMarchClouds(light, lightDir, pos2, lightDir, _RayMarchStep, 0, 100000, foo);
+                    // don't need shadow from terrain because it's very flat
+                    //float3 pos2 = pos; float foo;
+                    //pos2.y += 0.01;
+                    //if (RayMarchTerrain(pos2, lightDir, _RayMarchStep, 100))
+                    //{
+                    //    rayMarchShadowAtten = 0;
+                    //}
+                    float3 epos = pos; epos.y += 4.8;
+                    shadowAtten *= smoothstep(-1, 0.6, CloudsShadow(epos, lightDir));
 #endif
+                    //return half4(shadowAtten, shadowAtten, shadowAtten, 1);
 
-                    float intensity = min(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten * rayMarchShadowAtten, 1.0);
+                    float intensity = saturate(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten);
                     float3 color = _HighlightColor * light;
                     color = lerp(color, _ShadowColor, 1.0-intensity);
                     float2 uv = pos.xz - frac(pos.xz / _MainTex_ST.xy);
