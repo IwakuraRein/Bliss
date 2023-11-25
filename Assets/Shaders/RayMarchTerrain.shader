@@ -85,8 +85,8 @@ Shader "Bliss/RayMarchTerrain"
                     GetMainLight_float(pos, light, lightDir, distanceAtten, shadowAtten);
 
                     float intensity = min(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten, 1.0);
-
-                    float3 color = lerp(_HighlightColor, _ShadowColor, 1.0-intensity);
+                    float3 color = _HighlightColor * light;
+                    color = lerp(color, _ShadowColor, 1.0-intensity);
                     float2 uv = pos.xz - frac(pos.xz / _MainTex_ST.xy);
                     color *= tex2D(_MainTex, uv);
 
