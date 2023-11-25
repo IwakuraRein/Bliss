@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.18386626, g: 0.22870049, b: 0.30130354, a: 1}
+  m_IndirectSpecularColor: {r: 0.1838657, g: 0.2286987, b: 0.30130357, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -376,7 +376,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 311faaed5d7e9d244859d7715359057d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  heightAboveGround: 0.3
+  heightAboveGround: 0.4
 --- !u!114 &330585549
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -482,13 +482,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 410087039}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.27253875, y: 0.27500764, z: 0.06184489, w: -0.91992855}
+  m_LocalRotation: {x: -0.15064187, y: 0.9586684, z: -0.23539154, w: -0.053410366}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -207.867, y: -217.624, z: -197.354}
+  m_LocalEulerAnglesHint: {x: -207.867, y: -357.95898, z: -197.354}
 --- !u!114 &410087042
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -572,7 +572,7 @@ GameObject:
   - component: {fileID: 870086601}
   - component: {fileID: 870086600}
   m_Layer: 0
-  m_Name: TerrainRenderer
+  m_Name: TerrainCloudRenderer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -590,9 +590,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8c90a623f96a6d24382229f9a6850453, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enableInScene: 0
-  injectionPoint: 250
-  material: {fileID: 2100000, guid: 4dc5a840942da2748aac991312475058, type: 2}
+  enableInScene: 1
+  injectionPoint: 400
+  terrainMaterial: {fileID: 2100000, guid: 4dc5a840942da2748aac991312475058, type: 2}
+  cloudMaterial: {fileID: 2100000, guid: 751f3edcba4f1694f828412717e4609c, type: 2}
 --- !u!4 &870086601
 Transform:
   m_ObjectHideFlags: 0
@@ -650,11 +651,11 @@ MonoBehaviour:
   - {fileID: 1177448129903720284, guid: eff4332901b263d42958f8c20b2eeda6, type: 3}
   - {fileID: 8774556105089513024, guid: 4dda9d1a8ce4beb4d97d6cee23ae3fce, type: 3}
   mouseEventColors:
-  - {r: 1, g: 0, b: 0.85642624, a: 1}
-  - {r: 1, g: 0.4496705, b: 0, a: 1}
-  - {r: 0, g: 1, b: 0.90439177, a: 1}
-  - {r: 0.13777146, g: 0.24453658, b: 0.6792453, a: 1}
-  - {r: 0.22607541, g: 0.3962264, b: 0.024296913, a: 1}
+  - {r: 5.9921575, g: 0, b: 5.1318407, a: 1}
+  - {r: 5.9921575, g: 2.6944964, b: 0, a: 1}
+  - {r: 0, g: 5.9921575, b: 5.4192576, a: 1}
+  - {r: 1.2153904, g: 2.1572497, b: 5.992157, a: 1}
+  - {r: 3.4189522, g: 5.992156, b: 0.3674437, a: 1}
   settings:
     chunkSize: 2
     ChunkGrassSize: 250

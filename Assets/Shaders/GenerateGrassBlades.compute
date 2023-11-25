@@ -76,13 +76,13 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     v2_local.xz *= _GrassWidth;
 
     // compute v0
-    float dx = _terrainHash(float(id.x)) * 2.0 - 1.0;
-    float dy = _terrainHash(dx) * 2.0 - 1.0;
+    float dx = _rayMarchHash(float(id.x)) * 2.0 - 1.0;
+    float dy = _rayMarchHash(dx) * 2.0 - 1.0;
     dx += X; dy += Y;
     float2 pos2d = float2(_GridOrigin.x + _GridSize * dx, _GridOrigin.y + _GridSize * dy);
 
     // compute right dir
-    float4x4 rotMat = RotateY(_terrainHash(dy) * 6.28318531);
+    float4x4 rotMat = RotateY(_rayMarchHash(dy) * 6.28318531);
     float4 right = mul(rotMat, float4(1, 0, 0, 0));
     right.xyz = normalize(right.xyz);
 
@@ -124,7 +124,7 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     {
         float colorMix = mouseInfluence / (mouseInfluence + prop.color.w);
         prop.color.xyz = lerp(prop.color.xyz, _MouseEventColor, colorMix);
-        prop.color.w = max(prop.color.w, mouseInfluence);
+        //prop.color.w = max(prop.color.w, mouseInfluence);
         prop.color.w = mouseInfluence;
     }
     else

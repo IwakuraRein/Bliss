@@ -294,7 +294,7 @@ namespace Bliss
     public class GrassRenderer : MonoBehaviour
     {
         [SerializeField]
-        TerrainRenderer terrainRenderer;
+        TerrainCloudRenderer terrainRenderer;
         [SerializeField]
         bool enableInScene = false;
         [SerializeField]
@@ -312,6 +312,7 @@ namespace Bliss
         [SerializeField]
         Mesh[] meshes = new Mesh[3];
         [SerializeField]
+        [ColorUsage(true, true)]
         Color[] mouseEventColors = new Color[2] { Color.cyan, Color.blue };
         [SerializeField]
         GrassPassSettings settings;
@@ -376,7 +377,7 @@ namespace Bliss
                 Vector3 dir = Vector3.Normalize(target - cam.transform.position);
                 float3 pos = cam.transform.position;
                 //if (TerrainData.RayMarch(ref pos, dir, 0.8f, 1000f))
-                if (TerrainData.RayMarch(ref pos, dir, terrainRenderer.material.GetFloat("_RayMarchStep"), terrainRenderer.material.GetFloat("_RayMarchMaxDistance")))
+                if (TerrainData.RayMarch(ref pos, dir, terrainRenderer.terrainMaterial.GetFloat("_RayMarchStep"), terrainRenderer.terrainMaterial.GetFloat("_RayMarchMaxDistance")))
                 {
                     RayCastPos = (Vector3)pos - dir * 0.1f;
                 }

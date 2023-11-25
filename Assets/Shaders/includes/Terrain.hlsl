@@ -1,6 +1,7 @@
 #ifndef TERRAIN_HLSL
 #define TERRAIN_HLSL
 
+#include "RayMarchProperties.hlsl"
 
 /// <summary>
 /// reference: https://www.shadertoy.com/view/Mds3DX
@@ -8,32 +9,9 @@
 
 #define NORMAL_SAMPLE_DELTA 0.01
 #define OCTAVES 4
-#define MAX_MARCH_STEPS 150
 // doesn't matter much unless it is too small
 #define TILE_WIDTH 1024.0
 #define HEIGHT_MAGNITUDE 0.6
-
-float _terrainHash(float n) {
-	// this generates different results in CPU
-	//return frac(sin(n) * 43758.5453123);
-
-	// reference: https://www.shadertoy.com/view/4djSRW
-	// this generates different results in compute shaders. haven't figured out why.
-	//n = frac(n * .1031);
-	//n *= n + 33.33;
-	//n *= n + n;
-	//return frac(n);
-
-	// reference: https://gist.github.com/keijiro/24f9d505fac238c9a2982c0d6911d8e3
-	uint s = asuint(n);
-	s ^= 2747636419u;
-	s *= 2654435769u;
-	s ^= s >> 16;
-	s *= 2654435769u;
-	s ^= s >> 16;
-	s *= 2654435769u;
-	return float(s) / 4294967295.0;
-}
 
 // Value noise generator. Returns
 // three values on [-1, +1]
@@ -44,10 +22,10 @@ float3 _terrainNoise(float2 x) {
 	float n = p.x + p.y * TILE_WIDTH;
 
 	// Grab noise values at four corners of a square
-	float a = _terrainHash(n + 0.0);
-	float b = _terrainHash(n + 1.0);
-	float c = _terrainHash(n + TILE_WIDTH);
-	float d = _terrainHash(n + TILE_WIDTH + 1.0);
+	float a = _rayMarchHash(n + 0.0);
+	float b = _rayMarchHash(n + 1.0);
+	float c = _rayMarchHash(n + TILE_WIDTH);
+	float d = _rayMarchHash(n + TILE_WIDTH + 1.0);
 
 	// use smoothstep-filtered lerp for one component and compute the derivatives for the others
 	// See https://iquilezles.org/articles/morenoise
@@ -103,7 +81,7 @@ bool RayMarchTerrain(inout float3 rayPos, float3 rayDir, float step = 0.5, float
 	float3 pos;
 	float height;
 	bool hitFound = false;
-	for (int index = 0; index < 150; ++index)
+	for (int index = 0; index < MAX_MARCH_STEPS; ++index)
 	{
 		pos = rayPos + rayDir * time;
 		height = GetHeight(pos.xz);

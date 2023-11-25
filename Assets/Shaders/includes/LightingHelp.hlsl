@@ -23,7 +23,6 @@ void ApplyFog(inout float3 color, float distance)
     color = MixFog(color, fogFactor);
 }
 
-
 void GetMainLight_float(float3 WorldPos, out float3 Color, out float3 Direction, out float DistanceAtten, out float ShadowAtten)
 {
 #ifdef SHADERGRAPH_PREVIEW

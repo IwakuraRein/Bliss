@@ -2,6 +2,7 @@ Shader "Bliss/RayMarchTerrain"
 {
     Properties
     {
+        _MainTex("Texture", 2D) = "white" {}
         _RayMarchMaxDistance("RayMarchDistance", float) = 1000.0
         _RayMarchStep("RayMarchStep", float) = 0.5
         _HighlightColor("HighlightColor", Color) = (1, 1, 1, 1)
@@ -13,7 +14,7 @@ Shader "Bliss/RayMarchTerrain"
         LOD 100
 
         ZWrite On Cull Off
-        
+        ZTest Less
         Pass
         {
             Tags { "LightMode" = "UniversalForward" }
@@ -27,6 +28,7 @@ Shader "Bliss/RayMarchTerrain"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             #include "includes/Terrain.hlsl"
+            #include "includes/Cloud.hlsl"
             #include "includes/LightingHelp.hlsl"
 
             #pragma vertex vert
@@ -56,6 +58,8 @@ Shader "Bliss/RayMarchTerrain"
                 return o;
             }
 
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
 
             half4 frag(v2f i, out float depth : SV_Depth) : SV_Target
             {
@@ -83,6 +87,8 @@ Shader "Bliss/RayMarchTerrain"
                     float intensity = min(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten, 1.0);
 
                     float3 color = lerp(_HighlightColor, _ShadowColor, 1.0-intensity);
+                    float2 uv = pos.xz - frac(pos.xz / _MainTex_ST.xy);
+                    color *= tex2D(_MainTex, uv);
 
                     ApplyFog(color, T);
 
@@ -91,8 +97,9 @@ Shader "Bliss/RayMarchTerrain"
                     //return half4(distanceAtten, distanceAtten, distanceAtten, 1);
                     //return half4(n * 0.5 + 0.5, 1.0);
                 }
+
                 depth = 0.0;
-                return _ShadowColor;
+                return half4(0, 0, 0, 0);
             }
             ENDHLSL
         }
