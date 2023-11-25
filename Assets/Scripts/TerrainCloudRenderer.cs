@@ -15,6 +15,8 @@ namespace Bliss
 
         internal Blitter blitter = new Blitter();
         internal bool enableInSceneViewPort = false;
+        internal bool enableCloud = true;
+        internal bool enableTerrain = true;
         public TerrainCloudPass(Material terrainMat, Material cloudMat, RenderPassEvent injectionPoint)
         {
             this.terrainMat = terrainMat;
@@ -30,7 +32,7 @@ namespace Bliss
                 return;
             }
 
-            if (cloudMat != null)
+            if (cloudMat != null && enableCloud)
             {
                 CommandBuffer cmd = CommandBufferPool.Get();
                 using (new ProfilingScope(cmd, pofilingSamplerCloud))
@@ -41,7 +43,7 @@ namespace Bliss
                 cmd.Clear();
             }
 
-            if (terrainMat != null)
+            if (terrainMat != null && enableTerrain)
             {
                 CommandBuffer cmd = CommandBufferPool.Get();
                 using (new ProfilingScope(cmd, pofilingSamplerTerrain))
@@ -74,6 +76,10 @@ namespace Bliss
         [SerializeField]
         bool enableInScene = false;
         [SerializeField]
+        bool enableCloud = true;
+        [SerializeField]
+        bool enableTerrain = true;
+        [SerializeField]
         internal RenderPassEvent injectionPoint = RenderPassEvent.BeforeRenderingOpaques;
         [SerializeField]
         internal Material terrainMaterial;
@@ -90,6 +96,8 @@ namespace Bliss
 
         void OnBeginCamera(ScriptableRenderContext context, Camera cam)
         {
+            renderPass.enableCloud = enableCloud;
+            renderPass.enableTerrain = enableTerrain;
             renderPass.enableInSceneViewPort = enableInScene;
             cam.GetUniversalAdditionalCameraData()
                 .scriptableRenderer.EnqueuePass(renderPass);

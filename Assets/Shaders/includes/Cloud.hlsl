@@ -52,27 +52,6 @@ float4 _cloud_noise(float3 x)
             k2 + k5 * u.z + k4 * u.x + k7 * u.z * u.x,
             k3 + k6 * u.x + k5 * u.y + k7 * u.x * u.y));
 }
-float4 _fbmd_7(float3 x)
-{
-    float f = 1.92;
-    float s = 0.5;
-    float a = 0.0;
-    float b = 0.5;
-    float3  d = 0;
-    float3x3  m = float3x3(1.0, 0.0, 0.0,
-        0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0);
-    for (int i = 0; i < 7; i++)
-    {
-        float4 n = _cloud_noise(x);
-        a += b * n.x;          // accumulate values		
-        d += b * mul( m, n.yzw);      // accumulate derivatives
-        b *= s;
-        x = f * mul(_m3 , x);
-        m = f * mul(_m3i, m);
-    }
-    return float4(a, d);
-}
 float4 _fbmd_8(float3 x)
 {
     float f = 2.0;
@@ -98,7 +77,7 @@ float4 _fbmd_8(float3 x)
 
 float4 _cloudsFbm(float3 pos)
 {
-    return _fbmd_8(pos * 0.0015 + float3(2.0, 1.1, 1.0) + 0.07 * float3(_Time.y, 0.5 * _Time.y, -0.15 * _Time.y));
+    return _fbmd_8(pos * 0.001 + float3(2.0, 1.1, 1.0) + 0.05 * float3(_Time.y, 0.5 * _Time.y, -0.15 * _Time.y));
 }
 
 float4 cloudsMap(float3 pos, out float nnd)
@@ -133,7 +112,7 @@ float4 RayMarchClouds(float3 color, float3 kSunDir, float3 ro, float3 rd, float 
     //t += 1.0*hash1(gl_FragCoord.xy);
     float lastT = -1.0;
     float thickness = 0.0;
-    for (int i = 0; i < MAX_MARCH_STEPS; i++)
+    for (int i = 0; i < MAX_MARCH_CLOUD_STEPS; i++)
     {
         float3  pos = ro + t * rd;
         float nnd;

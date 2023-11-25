@@ -81,7 +81,7 @@ bool RayMarchTerrain(inout float3 rayPos, float3 rayDir, float step = 0.5, float
 	float3 pos;
 	float height;
 	bool hitFound = false;
-	for (int index = 0; index < MAX_MARCH_STEPS; ++index)
+	for (int index = 0; index < MAX_MARCH_TERRAIN_STEPS; ++index)
 	{
 		pos = rayPos + rayDir * time;
 		height = GetHeight(pos.xz);

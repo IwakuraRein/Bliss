@@ -1,7 +1,8 @@
 #ifndef RAY_MARCH_PROPERTIES_HLSL
 #define RAY_MARCH_PROPERTIES_HLSL
 
-#define MAX_MARCH_STEPS 128
+#define MAX_MARCH_TERRAIN_STEPS 128
+#define MAX_MARCH_CLOUD_STEPS 64
 
 float _rayMarchHash(float n) {
 	// this generates different results in CPU
