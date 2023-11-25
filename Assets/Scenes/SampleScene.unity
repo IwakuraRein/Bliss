@@ -660,12 +660,12 @@ MonoBehaviour:
     ChunkGrassSize: 250
     scaleOverride: {x: 0.007, y: 0.01, z: 1}
     windFieldSpeed: 0.02
-    windFieldMagnitude: 10
+    windFieldMagnitude: 20
     grassStiffness: 800
     timeScale: 0.005
     mouseEventDecay: 0.9
     mouseEventRadius: 0.5
-    mouseEventWindForce: 500
+    mouseEventWindForce: 200
 --- !u!4 &1007344548
 Transform:
   m_ObjectHideFlags: 0

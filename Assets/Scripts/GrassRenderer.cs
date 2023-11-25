@@ -592,7 +592,7 @@ namespace Bliss
                                 grassPass.chunks[idx] = chunk;
                                 grassPass.chunks[idx].index = idx;
                                 newBufferMap.Add(chunk.grid, idx);
-                                grassPass.InitializeChunk(idx);
+                                //grassPass.InitializeChunk(idx);
                             }
                         }
                         chunkBufferMaps[i] = newBufferMap;

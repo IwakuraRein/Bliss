@@ -86,29 +86,16 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     float4 right = mul(rotMat, float4(1, 0, 0, 0));
     right.xyz = normalize(right.xyz);
 
+    float mouseInfluence = 0;
     // handle mouse event
     if (_MouseClicked != 0)
     {
         float3 dir = prop.v0_world - _MouseClickPos;
         float dist = length(prop.v0_world - _MouseClickPos);
         dir = normalize(dir);
-        float ratio = saturate(1.0 - dist / _MouseEventRadius);
-        prop.innerForce.xyz = _MouseEventWindForce * dir * ratio * ratio;
-
-        if (ratio > 0.001)
-        {
-            float colorMix = ratio / (ratio + prop.color.w);
-            prop.color.xyz = lerp(prop.color.xyz, _MouseEventColor, colorMix);
-            //prop.color.w = max(prop.color.w, ratio);
-            prop.color.w = ratio;
-        }
+        mouseInfluence = saturate(1.0 - dist / _MouseEventRadius);
+        prop.innerForce.xyz = _MouseEventWindForce * dir * mouseInfluence * mouseInfluence;
     }
-    //else
-    //{
-    //    float decay = pow(_MouseEventDecay, _DeltaTime / _TimeScale);
-    //    prop.innerForce *= decay;
-    //    prop.color.w *= decay;
-    //}
 
     // update v2 and v1
     float3 v2_local_orig = float3(0, _GrassHeight, 0);
@@ -131,10 +118,21 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
     float3 v2new = v1new + r * (v2_local - v1_local);
 
 
+
     // write the result
+    if (mouseInfluence > 0.001)
+    {
+        float colorMix = mouseInfluence / (mouseInfluence + prop.color.w);
+        prop.color.xyz = lerp(prop.color.xyz, _MouseEventColor, colorMix);
+        prop.color.w = max(prop.color.w, mouseInfluence);
+        prop.color.w = mouseInfluence;
+    }
+    else
+    {
         float decay = pow(_MouseEventDecay, _DeltaTime / _TimeScale);
         prop.innerForce *= decay;
         prop.color.w *= decay;
+    }
     prop.v0_world = float4(pos2d.x, GetHeight(pos2d)+0.05, pos2d.y, 1);
     prop.v1andv2_local.x = v1new.y / _GrassHeight;
     prop.v1andv2_local.z = v2new.y / _GrassHeight;
