@@ -94,6 +94,7 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
         float dist = length(prop.v0_world - _MouseClickPos);
         dir = normalize(dir);
         mouseInfluence = saturate(1.0 - dist / _MouseEventRadius);
+        mouseInfluence *= mouseInfluence;
         prop.innerForce.xyz = _MouseEventWindForce * dir * mouseInfluence * mouseInfluence;
     }
 

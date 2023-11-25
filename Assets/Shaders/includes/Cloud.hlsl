@@ -77,7 +77,7 @@ float4 _fbmd_8(float3 x)
 
 float4 _cloudsFbm(float3 pos)
 {
-    return _fbmd_8(pos * 0.001 + float3(2.0, 1.1, 1.0) + 0.05 * float3(_Time.y, 0.5 * _Time.y, -0.15 * _Time.y));
+    return _fbmd_8(pos * 0.001 + float3(2.0, 1.1, 1.0) + 0.02 * float3(_Time.y, 0.5 * _Time.y, -0.15 * _Time.y));
 }
 
 float4 cloudsMap(float3 pos, out float nnd)

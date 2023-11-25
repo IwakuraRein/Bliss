@@ -22,6 +22,7 @@ Shader "Bliss/RayMarchTerrain"
             //#pragma enable_d3d11_debug_symbols 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _SHADOWS_SOFT
+            #pragma multi_compile _ _RAY_MARCH_SHADOW
             #pragma multi_compile_fog
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -84,7 +85,18 @@ Shader "Bliss/RayMarchTerrain"
                     float distanceAtten, shadowAtten;
                     GetMainLight_float(pos, light, lightDir, distanceAtten, shadowAtten);
 
-                    float intensity = min(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten, 1.0);
+                    float rayMarchShadowAtten = 1;
+#if _RAY_MARCH_SHADOW
+                    float3 pos2 = pos; float foo;
+                    pos2.y += 0.01;
+                    if (RayMarchTerrain(pos2, lightDir, _RayMarchStep, 100))
+                    {
+                        rayMarchShadowAtten = 0;
+                    }
+                    rayMarchShadowAtten *= RayMarchClouds(light, lightDir, pos2, lightDir, _RayMarchStep, 0, 100000, foo);
+#endif
+
+                    float intensity = min(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten * rayMarchShadowAtten, 1.0);
                     float3 color = _HighlightColor * light;
                     color = lerp(color, _ShadowColor, 1.0-intensity);
                     float2 uv = pos.xz - frac(pos.xz / _MainTex_ST.xy);

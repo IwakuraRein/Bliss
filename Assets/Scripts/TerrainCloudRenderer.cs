@@ -14,9 +14,25 @@ namespace Bliss
         internal Material cloudMat;
 
         internal Blitter blitter = new Blitter();
-        internal bool enableInSceneViewPort = false;
-        internal bool enableCloud = true;
-        internal bool enableTerrain = true;
+        public bool enableInSceneViewPort = false;
+        public bool enableCloud = true;
+        public bool enableTerrain = true;
+        public bool enableShadow
+        {
+            get 
+            {
+                if (terrainMat != null && terrainMat.IsKeywordEnabled("_RAY_MARCH_SHADOW")) return true;
+                return false;
+            }
+            set
+            {
+                if (terrainMat != null)
+                {
+                    if (value) terrainMat.EnableKeyword("_RAY_MARCH_SHADOW");
+                    else terrainMat.DisableKeyword("_RAY_MARCH_SHADOW");
+                }
+            }
+        }
         public TerrainCloudPass(Material terrainMat, Material cloudMat, RenderPassEvent injectionPoint)
         {
             this.terrainMat = terrainMat;
@@ -76,6 +92,8 @@ namespace Bliss
         [SerializeField]
         bool enableInScene = false;
         [SerializeField]
+        bool enableShadow = false;
+        [SerializeField]
         bool enableCloud = true;
         [SerializeField]
         bool enableTerrain = true;
@@ -96,6 +114,7 @@ namespace Bliss
 
         void OnBeginCamera(ScriptableRenderContext context, Camera cam)
         {
+            renderPass.enableShadow = enableShadow;
             renderPass.enableCloud = enableCloud;
             renderPass.enableTerrain = enableTerrain;
             renderPass.enableInSceneViewPort = enableInScene;

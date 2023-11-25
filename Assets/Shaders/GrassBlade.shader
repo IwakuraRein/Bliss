@@ -14,7 +14,7 @@ Shader "Bliss/GrassBlade"
             "RenderType" = "Opaque"
             "RenderPipeline" = "UniversalPipeline"
         }
-        ZWrite On
+        ZWrite On Cull Off
 
         Pass
         {
@@ -91,7 +91,7 @@ Shader "Bliss/GrassBlade"
                 float distanceAtten, shadowAtten;
                 GetMainLight_float(i.world_pos.xyz, light, lightDir, distanceAtten, shadowAtten);
 
-                float intensity = min(max(0, dot(n, lightDir)) * /*distanceAtten * */shadowAtten, 1.0);
+                float intensity = saturate(abs(dot(n, lightDir)) * /*distanceAtten * */shadowAtten);
 
                 //float3 color = _HighlightColor;
                 float top = max(0, min(1, 1 - i.uv.y));
