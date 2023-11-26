@@ -31,7 +31,7 @@ Also, I prepared three three levels of detail (LOD) for grass blade models:
 
 I partition the camera frustum into tiles using the scanline algorithm, and then use the compute shader to generate grass blades in each tile.
 
-![](Doc/tiles.png)
+![](Doc/frustum.gif)
 
 The compute shader determines the V0 and the orientation of the grass blades by blue noise, and updates V1 and V2 based on the force field. There is a global force field sampled from a perlin noise, and a local force field stored in grass blades' states. After the compute shader, `DrawMeshInstancedIndirect` is invoked 3 times (corresponding to the LOD) to render the grass blades.
 
