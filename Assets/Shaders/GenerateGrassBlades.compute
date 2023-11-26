@@ -98,7 +98,7 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
 
     // update v2 and v1
     float3 v2_local_orig = float3(0, _GrassHeight, 0);
-    float3 force = (v2_local_orig - v2_local) * _GrassStiffness; // recovery;
+    float3 force = (v2_local_orig - v2_local) * _GrassStiffness * (_hash2to1(pos2d) + 0.5); // recovery;
     force += WindField(pos2d); // wind
     force += _Gravity; // gravity
     force += prop.innerForce;
@@ -132,7 +132,7 @@ void CSMain(uint3 id : SV_DispatchThreadID) {
         prop.innerForce *= decay;
         prop.color.w *= decay;
     }
-    prop.v0_world = float4(pos2d.x, GetHeight(pos2d)+0.05, pos2d.y, 1);
+    prop.v0_world = float4(pos2d.x, GetHeight(pos2d)+0.02, pos2d.y, _hash2to1(pos2d) + 0.5);
     prop.v1andv2_local.x = v1new.y / _GrassHeight;
     prop.v1andv2_local.z = v2new.y / _GrassHeight;
     prop.v1andv2_local.yw = v2new.xz / _GrassWidth;

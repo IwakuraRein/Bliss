@@ -26,4 +26,19 @@ float _rayMarchHash(float n) {
 	return float(s) / 4294967295.0;
 }
 
+/// <summary>
+/// reference: https://www.shadertoy.com/view/4ttSWf
+/// </summary>
+float _hash2to1(float2 p)
+{
+	p = 50.0 * frac(p * 0.3183099);
+	return frac(p.x * p.y * (p.x + p.y));
+}
+float2 _hash2to2(float2 p)
+{
+	const float2 k = float2(0.3183099, 0.3678794);
+	float n = 111.0 * p.x + 113.0 * p.y;
+	return frac(n * frac(k * n));
+}
+
 #endif
