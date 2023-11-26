@@ -57,6 +57,10 @@ public class GameManager : MonoBehaviour
     Slider MouseWindForceSlider;
     [SerializeField]
     Slider MouseDecaySlider;
+    [SerializeField]
+    Slider GrassWidthSlider;
+    [SerializeField]
+    Slider GrassHeightSlider;
 
     [SerializeField]
     GrassRenderer grassRenderer;
@@ -152,6 +156,14 @@ public class GameManager : MonoBehaviour
         MouseDecaySlider.value = 1f - grassRenderer.settings.mouseEventDecay;
         MouseDecaySlider.onValueChanged.AddListener(delegate {
             grassRenderer.settings.mouseEventDecay = 1f - MouseDecaySlider.value;
+        });
+        GrassWidthSlider.value = grassRenderer.settings.scaleOverride.x;
+        GrassWidthSlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.scaleOverride.x = GrassWidthSlider.value;
+        });
+        GrassHeightSlider.value = grassRenderer.settings.scaleOverride.y;
+        GrassHeightSlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.scaleOverride.y = GrassHeightSlider.value;
         });
     }
     private void LateUpdate()

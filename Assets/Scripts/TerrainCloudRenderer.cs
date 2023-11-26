@@ -106,6 +106,15 @@ namespace Bliss
 
         TerrainCloudPass renderPass;
 
+        public bool EnableCloud
+        {
+            get => enableCloud; set => enableCloud = value;
+        }
+        public bool EnableTerrain
+        {
+            get => enableTerrain; set => enableTerrain = value;
+        }
+
         void OnEnable()
         {
             renderPass = new TerrainCloudPass(terrainMaterial, cloudMaterial, injectionPoint);
