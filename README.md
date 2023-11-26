@@ -30,13 +30,13 @@ Also, I prepared three three levels of detail (LOD) for grass blade models:
 
 ## Grass Generation
 
-I partition the camera frustum in to tiles and use the compute shader to generate grass blades in each tile.
+I partition the camera frustum into tiles and use the compute shader to generate grass blades in each tile.
 
 ![](Doc/tiles.png)
 
-The compute shader determines the V0 and the orientaion of the grass blades by blue noise, and update V1 and V2 based on the force field. There is a global force field sampled from a perlin noise, and a local force field stored in grass blades' states. After the compute shader, `DrawMeshInstancedIndirect` is invoked 3 times (corresponding to the LOD) to render the grass blades.
+The compute shader determines the V0 and the orientation of the grass blades by blue noise, and updates V1 and V2 based on the force field. There is a global force field sampled from a perlin noise, and a local force field stored in grass blades' states. After the compute shader, `DrawMeshInstancedIndirect` is invoked 3 times (corresponding to the LOD) to render the grass blades.
 
-The states of a grass blade is stored into a struct:
+The state of a grass blade is stored in a struct:
 
 ```c
 struct GrassRenderProperty {
@@ -53,6 +53,8 @@ The compute shader writes to a buffer of `GrassRenderProperty`, which the vertex
 ## Interactivity
 
 I also copied the ray marching codes to the CPU side to get the intersection position between the mouse and the terrain when the user clicks the mouse button. The intersection position is passed to the compute shader to update grass blades' inner force and color states.
+
+https://github.com/IwakuraRein/Bliss/assets/28486541/1d69a8b6-b355-4573-8b8a-04f6c85493e1
 
 ## Future Work
 
