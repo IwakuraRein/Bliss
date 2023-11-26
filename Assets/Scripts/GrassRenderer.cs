@@ -60,9 +60,6 @@ namespace Bliss
     public struct GrassPassSettings
     {
         public float chunkSize;
-        [Range(2, 500)]
-        [Tooltip("A chunk will of ChunkGrassSize^2 grass blades.")]
-        public int ChunkGrassSize;
 
         public Vector3 scaleOverride;
         public float windFieldSpeed;
@@ -73,10 +70,6 @@ namespace Bliss
         public float mouseEventDecay;
         public float mouseEventRadius;
         public float mouseEventWindForce;
-        public int GrassNumPerChunk
-        {
-            get { return ChunkGrassSize * ChunkGrassSize; }
-        }
     }
 
     public class GrassPass : ScriptableRenderPass
@@ -108,15 +101,20 @@ namespace Bliss
                 return meshes[0].bounds.size.x * settings.scaleOverride.x;
             }
         }
+        public int GrassNumPerChunk
+        {
+            get { return chunkGrassSize * chunkGrassSize; }
+        }
         internal ProfilingSampler pofilingSampler = new ProfilingSampler("Grass");
         internal Material material;
         internal Mesh[] meshes;
         internal ComputeShader compute;
         internal bool enableInSceneViewPort = false;
+        internal int chunkGrassSize;
 
         internal int LODCount;
         internal int[] LODs;
-        internal int chunkSize;
+        internal int chunkNum;
         internal GrassRenderProperty[] initialProperties;
         internal ComputeBuffer meshRenderPropertyBuffer; // store matrics for grass
         internal ComputeBuffer[] drawIndirectArgsBuffers; // store number, lod, grid origin position, etc
@@ -132,7 +130,7 @@ namespace Bliss
             get => meshRenderPropertyBuffer != null ? meshRenderPropertyBuffer.count : 0;
         }
 
-        public GrassPass(Material material, Mesh[] meshes, ComputeShader compute, int[] LODs, GrassPassSettings settings, RenderPassEvent injectionPoint)
+        public GrassPass(Material material, Mesh[] meshes, ComputeShader compute, int[] LODs, int chunkGrassSize, GrassPassSettings settings, RenderPassEvent injectionPoint)
         {
             if (meshes.Length != LODs.Length)
             {
@@ -140,9 +138,9 @@ namespace Bliss
             }
             this.LODCount = Mathf.Min(meshes.Length, LODs.Length);
             this.LODs = LODs;
-            //this.chunkSize = LODs.Sum
-            this.chunkSize = 0;
-            for (int i = 0; i < LODCount; ++i) { this.chunkSize += LODs[i]; }
+            this.chunkGrassSize = chunkGrassSize;
+            this.chunkNum = 0;
+            for (int i = 0; i < LODCount; ++i) { this.chunkNum += LODs[i]; }
             this.material = material;
             this.meshes = meshes;
             this.compute = compute;
@@ -164,8 +162,8 @@ namespace Bliss
                 drawIndirectArgsBuffers[i] = new ComputeBuffer(1, 5 * sizeof(uint), ComputeBufferType.IndirectArguments);
             }
 
-            meshRenderPropertyBuffer = new ComputeBuffer(chunkSize * settings.GrassNumPerChunk, GrassRenderProperty.Size());
-            for (int i = 0; i < chunkSize; ++i)
+            meshRenderPropertyBuffer = new ComputeBuffer(chunkNum * GrassNumPerChunk, GrassRenderProperty.Size());
+            for (int i = 0; i < chunkNum; ++i)
             {
                 InitializeChunk(i);
             }
@@ -178,14 +176,14 @@ namespace Bliss
             {
                 Debug.LogError($"No compute buffer is allocated"); return;
             }
-            if (chunkIndex >= chunkSize)
+            if (chunkIndex >= chunkNum)
             {
                 Debug.LogError($"Chunk index exceeds chunk size"); return;
             }
-            if (initialProperties == null || initialProperties.Length != settings.GrassNumPerChunk)
+            if (initialProperties == null || initialProperties.Length != GrassNumPerChunk)
             {
-                initialProperties = new GrassRenderProperty[settings.GrassNumPerChunk];
-                for (int i = 0; i < settings.GrassNumPerChunk; i++)
+                initialProperties = new GrassRenderProperty[GrassNumPerChunk];
+                for (int i = 0; i < GrassNumPerChunk; i++)
                 {
                     initialProperties[i].v1andv2.x = 1f;
                     initialProperties[i].v1andv2.y = 0f;
@@ -196,7 +194,7 @@ namespace Bliss
                     initialProperties[i].innerForce = Vector4.zero;
                 }
             }
-            meshRenderPropertyBuffer.SetData(initialProperties, 0, chunkIndex * settings.GrassNumPerChunk, settings.GrassNumPerChunk);
+            meshRenderPropertyBuffer.SetData(initialProperties, 0, chunkIndex * GrassNumPerChunk, GrassNumPerChunk);
         }
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
@@ -240,20 +238,21 @@ namespace Bliss
             {
                 foreach (var chunk in chunks)
                 {
-                    if (++chunkCount > chunkSize) break;
+                    if (++chunkCount > chunkNum) break;
                     //var chunk = chunks[0];
                     compute.SetVector("_GridOrigin", chunk.pos2d);
-                    compute.SetFloat("_GridSize", chunk.size / settings.ChunkGrassSize);
-                    compute.SetInt("_ChunkWidth", settings.ChunkGrassSize);
-                    compute.SetInt("_PropertiesStartIdx", chunk.index * settings.GrassNumPerChunk);
+                    compute.SetFloat("_GridSize", chunk.size / chunkGrassSize);
+                    compute.SetInt("_ChunkWidth", chunkGrassSize);
+                    compute.SetInt("_PropertiesStartIdx", chunk.index * GrassNumPerChunk);
                     // We used to just be able to use `population` here, but it looks like a Unity update imposed a thread limit (65535) on my device.
                     // This is probably for the best, but we have to do some more calculation.  Divide population by numthreads.x in the compute shader.
-                    compute.Dispatch(kernel, Mathf.CeilToInt(settings.GrassNumPerChunk / 64f), 1, 1);
+                    compute.Dispatch(kernel, Mathf.CeilToInt(GrassNumPerChunk / 64f), 1, 1);
                 }
             }
             chunkCount = 0;
             for (int i = 0; i < LODCount; ++i)
             {
+                if (LODs[i] <= 0) continue;
                 CommandBuffer cmd = CommandBufferPool.Get();
                 using (new ProfilingScope(cmd, pofilingSampler))
                 {
@@ -262,11 +261,11 @@ namespace Bliss
                     // doesn't work on my machine
                     uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
                     args[0] = (uint)meshes[i].GetIndexCount(0);
-                    args[1] = (uint)(settings.GrassNumPerChunk * LODs[i]);
+                    args[1] = (uint)(GrassNumPerChunk * LODs[i]);
                     args[2] = (uint)meshes[i].GetIndexStart(0);
                     args[3] = (uint)meshes[i].GetBaseVertex(0);
-                    //args[4] = (uint)(chunkCount * settings.GrassNumPerChunk); // doesn't work
-                    cmd.SetGlobalInt("_GrassRenderPropertyStartIndex", chunkCount * settings.GrassNumPerChunk);
+                    //args[4] = (uint)(chunkCount * GrassNumPerChunk); // doesn't work
+                    cmd.SetGlobalInt("_GrassRenderPropertyStartIndex", chunkCount * GrassNumPerChunk);
                     drawIndirectArgsBuffers[i].SetData(args);
                     cmd.DrawMeshInstancedIndirect(meshes[i], 0, material, 0, drawIndirectArgsBuffers[i]);
                     chunkCount += LODs[i];
@@ -302,20 +301,23 @@ namespace Bliss
         [SerializeField]
         Camera cam;
         [SerializeField]
-        float maxViewDistance = 100f;
+        internal float maxViewDistance = 100f;
+        [Range(2, 500)]
+        [Tooltip("A chunk will of ChunkGrassSize^2 grass blades.")]
+        internal int chunkGrassSize = 250;
         [SerializeField]
         ComputeShader compute;
         [SerializeField]
         Material material; // vert and frag
         [SerializeField]
-        int[] LOD = new int[3] { 10, 30, 50 };
+        internal int[] LOD = new int[3] { 10, 30, 50 };
         [SerializeField]
-        Mesh[] meshes = new Mesh[3];
+        internal Mesh[] meshes = new Mesh[3];
         [SerializeField]
         [ColorUsage(true, true)]
         Color[] mouseEventColors = new Color[2] { Color.cyan, Color.blue };
         [SerializeField]
-        GrassPassSettings settings;
+        internal GrassPassSettings settings;
 
         Plane[] frustumPlanes;
         Vector2[] frustumTriangle = new Vector2[3];
@@ -332,14 +334,19 @@ namespace Bliss
         {
             get
             {
-                if (grassPass != null && grassPass.chunks != null) return grassPass.chunks.Length * settings.GrassNumPerChunk;
+                if (grassPass != null && grassPass.chunks != null) return grassPass.chunks.Length * grassPass.GrassNumPerChunk;
                 return 0;
             }
         }
-
+        public void ResetRenderPass()
+        {
+            if (grassPass != null) grassPass.Dispose();
+            grassPass = new GrassPass(material, meshes, compute, LOD, chunkGrassSize, settings, injectionPoint);
+            GenerateChunks();
+        }
         void OnEnable()
         {
-            grassPass = new GrassPass(material, meshes, compute, LOD, settings, injectionPoint);
+            grassPass = new GrassPass(material, meshes, compute, LOD, chunkGrassSize, settings, injectionPoint);
             GenerateChunks();
             RenderPipelineManager.beginCameraRendering += OnBeginCamera;
         }
@@ -385,6 +392,7 @@ namespace Bliss
         }
         void OnBeginCamera(ScriptableRenderContext context, Camera cam)
         {
+            grassPass.settings = settings;
             grassPass.enableInSceneViewPort = enableInScene;
             //Shader.SetGlobalInt("_MouseClicked", RayCastPos.HasValue ? 1 : 0);
             //Shader.SetGlobalVector("_MouseClickPos", RayCastPos.HasValue ? RayCastPos.Value : Vector3.zero);
@@ -526,7 +534,7 @@ namespace Bliss
                 {
                     chunkBufferMaps = new Dictionary<Vector2Int, int>[LOD.Length];
                     for (int i = 0; i < LOD.Length; ++i) chunkBufferMaps[i] = new Dictionary<Vector2Int, int>();
-                    grassPass.chunks = new GrassChunk[grassPass.chunkSize];
+                    grassPass.chunks = new GrassChunk[grassPass.chunkNum];
                     int idx = 0;
                     int it = 0;
                     bool reachedEnd = false;
