@@ -51,7 +51,7 @@ The compute shader writes to a buffer of `GrassRenderProperty`, which the vertex
 
 ## Interactivity
 
-I also copied the ray marching codes to the CPU side to get the intersection position between the mouse and the terrain when the user clicks the mouse button. The intersection position is passed to the compute shader to update grass blades' inner force and color states. As a result, the user's click action pushes the grass away and change its color.
+I also copied the ray marching codes to the CPU side to get the intersection position between the mouse and the terrain when the user clicks the mouse button. The intersection position is passed to the compute shader to update the grass blades' inner force and color states. As a result, the user's click action pushes the grass away and change its color.
 
 https://github.com/IwakuraRein/Bliss/assets/28486541/1d69a8b6-b355-4573-8b8a-04f6c85493e1
 
@@ -59,16 +59,20 @@ https://github.com/IwakuraRein/Bliss/assets/28486541/1d69a8b6-b355-4573-8b8a-04f
 
 ### Better LOD
 
-At present, all the tiles share the same size and generate the same amount of grass. It would be more ideal to make the tiles far away larger and have less amount of grass. A potential approach is to divide the frustum in to different areas and rasterize each with different tile size.
+At present, all the tiles share the same size and generate the same amount of grass. It would be ideal to make the tiles that are far away larger and have less amount of grass. A potential approach is to divide the frustum into different areas and rasterize each with different tile size.
 
 ![](Doc/better_lod.png)
 
-Additionally, the current CPU time for generating the tiles is non-negligible. It would be better to use Job System or computer shader to speed-up this process.
+Additionally, the current CPU time for generating the tiles is non-negligible. It would be better to use the Job System or computer shader to speed up this process.
 
 ### Culling
 
-There are many grass blades being blocked by the terrain so it is desirable to cull these invisible blades. A potential approach is to generate a Hi-Z buffer after rendering the terrain and access it in the compute shader. However, this will introduce a new buffer to store the indices of the blades that pass the culling. The compute shader can use the atomic adding operation when writing to this buffer.
+There are many grass blades being blocked by the terrain so it is desirable to cull these invisible blades. A potential approach is to generate a Hi-Z buffer after rendering the terrain and accessing it in the compute shader. However, this will introduce a new buffer to store the indices of the blades that pass the culling. The compute shader can use the atomic adding operation when writing to this buffer.
 
 ### Variety of Grass Models 
 
-It would be more interesting if there are different types of grass blades. For instance, some flowers.
+It will be more interesting if there are different types of grass blades. For instance, some flowers.
+
+### Better Simulation
+
+Currently, I directly update the positions based on forces. This sometimes causes jittering and may be solved by adding another state to maintain velocity.
