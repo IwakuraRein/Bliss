@@ -39,10 +39,10 @@ The state of a grass blade is stored in a struct:
 
 ```c
 struct GrassRenderProperty {
-    float4 v0_world;
+    float4 v0_world; // w is the random grass height multiplier
     float4 v1andv2_local; // x: v1.y uniformed by grass height; yw: v2's xz coordinates uniformed by grass width; z: v2's y coordinate uniformed by grass height
     float4 right; // the right direction of the blade.
-    float4 color;
+    float4 color; // w is the blend factor
     float4 innerForce;
 };
 ```
