@@ -94,8 +94,6 @@ Shader "Bliss/GrassBlade"
 
                 float intensity = saturate(abs(dot(n, lightDir)) * /*distanceAtten * */shadowAtten);
 
-                intensity *= smoothstep(-1, 0.6, CloudsShadow(epos, lightDir));
-
                 //float3 color = _HighlightColor;
                 float top = max(0, min(1, 1 - i.uv.y));
                 float edge = max(0, min(abs(0.5 - i.uv.x) * 2, 1));
