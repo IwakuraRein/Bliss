@@ -7,6 +7,8 @@ Shader "Bliss/RayMarchTerrain"
         _RayMarchStep("RayMarchStep", float) = 0.5
         _HighlightColor("HighlightColor", Color) = (1, 1, 1, 1)
         _ShadowColor("ShadowColor", Color) = (0, 0, 0, 1)
+        _GrassColor("GrassColor", Color) = (0, 0.8, 0, 1)
+        _GrassFadeDist("GrassFadeDist", float) = 40
     }
     SubShader
     {
@@ -61,6 +63,8 @@ Shader "Bliss/RayMarchTerrain"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4 _GrassColor;
+            float _GrassFadeDist;
 
             half4 frag(v2f i, out float depth : SV_Depth) : SV_Target
             {
@@ -103,6 +107,9 @@ Shader "Bliss/RayMarchTerrain"
                     color = lerp(color, _ShadowColor, 1.0-intensity);
                     float2 uv = pos.xz - frac(pos.xz / _MainTex_ST.xy);
                     color *= tex2D(_MainTex, uv);
+
+                    float grassBlend = saturate(exp2(-T / _GrassFadeDist));
+                    color = lerp(_GrassColor, color, grassBlend);
 
                     ApplyFog(color, T);
 
