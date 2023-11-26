@@ -45,6 +45,18 @@ public class GameManager : MonoBehaviour
     Slider LOD2Slider;
     [SerializeField]
     Slider TimeScaleSlider;
+    [SerializeField]
+    Slider GrassStiffnessScaleSlider;
+    [SerializeField]
+    Slider WindFieldSpeedSlider;
+    [SerializeField]
+    Slider WindForceSlider;
+    [SerializeField]
+    Slider MouseRadiusSlider;
+    [SerializeField]
+    Slider MouseWindForceSlider;
+    [SerializeField]
+    Slider MouseDecaySlider;
 
     [SerializeField]
     GrassRenderer grassRenderer;
@@ -116,6 +128,30 @@ public class GameManager : MonoBehaviour
         TimeScaleSlider.value = grassRenderer.settings.timeScale;
         TimeScaleSlider.onValueChanged.AddListener(delegate {
             grassRenderer.settings.timeScale = TimeScaleSlider.value;
+        });
+        GrassStiffnessScaleSlider.value = grassRenderer.settings.grassStiffness;
+        GrassStiffnessScaleSlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.grassStiffness = GrassStiffnessScaleSlider.value;
+        });
+        WindFieldSpeedSlider.value = grassRenderer.settings.windFieldSpeed;
+        WindFieldSpeedSlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.windFieldSpeed = WindFieldSpeedSlider.value;
+        });
+        WindForceSlider.value = grassRenderer.settings.windFieldMagnitude;
+        WindForceSlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.windFieldMagnitude = WindForceSlider.value;
+        });
+        MouseRadiusSlider.value = grassRenderer.settings.mouseEventRadius;
+        MouseRadiusSlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.mouseEventRadius = MouseRadiusSlider.value;
+        });
+        MouseWindForceSlider.value = grassRenderer.settings.mouseEventWindForce;
+        MouseWindForceSlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.mouseEventWindForce = MouseWindForceSlider.value;
+        });
+        MouseDecaySlider.value = 1f - grassRenderer.settings.mouseEventDecay;
+        MouseDecaySlider.onValueChanged.AddListener(delegate {
+            grassRenderer.settings.mouseEventDecay = 1f - MouseDecaySlider.value;
         });
     }
     private void LateUpdate()
