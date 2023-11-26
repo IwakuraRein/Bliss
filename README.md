@@ -1,7 +1,7 @@
 # Bliss
 A Unity GPU Instancing Sample
 
-https://github.com/IwakuraRein/Bliss/assets/28486541/df1052e4-34e3-4dd3-b1fa-182c201c3aef
+https://github.com/IwakuraRein/Bliss/assets/28486541/5529f5c4-1e72-43e8-a2d2-8379ec44c87a
 
 ## Reference
 
